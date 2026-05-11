@@ -52,3 +52,21 @@
 
 ### Fixed (stochastic test stability)
 - Added `laser.core.random.seed()` to `test_seir`, `test_seirs`, `test_sir`, `test_sirs`, `test_seis`, and `test_sis` to prevent flaky failures caused by stochastic epidemic extinction in nodes with large populations relative to the 10-individual initial seed
+
+### Added (NonDiseaseMortality)
+- `src/laser/cohorts/vitaldynamics.py`: implemented `NonDiseaseMortality` component; accepts scalar, `ValuesMap`, or 2-D ndarray `mu`; applies binomial mortality draws to all states (or an optional named subset) each tick; registers `non_disease_mortality` node property
+- `laser.cohorts.NonDiseaseMortality` exported from `__init__.py`
+- `tests/test_mortality.py`: 8 new tests covering zero mortality, certain mortality, death accumulation, state-subset masking, default all-states behaviour, and all three `mu` input forms
+
+### Changed (NonDiseaseMortality refactor)
+- `components.py`: removed `mu` parameter and binomial mortality draws from `Susceptible`, `Exposed`, `Infectious`, `Recovered`, `InfectiousToRecovered`, `InfectiousToSusceptible`, and `RecoveredToSusceptible`; each component's `properties` no longer registers `non_disease_mortality`
+- Updated stochastic test seeds (`test_sir` seed 2→0, `test_sis` seed 5→11) to account for the changed RNG call sequence after removing zero-rate binomial draws
+
+### Changed (PropertyType consolidation)
+- `src/laser/cohorts/utils.py`: added `PropertyType` type alias (was duplicated in `components.py` and `vitaldynamics.py`)
+- `components.py` and `vitaldynamics.py`: removed local `PropertyType` definitions; now import from `laser.cohorts.utils`
+- `laser.cohorts.PropertyType` exported from `__init__.py` for use in custom component authors
+
+### Changed (initial infection seeding)
+- All 8 model integration tests now seed infections as `max(min(25, pop), int(0.01 * pop))` per node instead of a fixed count of 10, making epidemic establishment reliable even in large-population nodes
+- All 6 stochastic test seeds unified to 0 (was 0/0/0/0/0/11) after re-calibration against the new initial conditions

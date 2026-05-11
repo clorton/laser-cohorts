@@ -6,14 +6,13 @@ registered on a `Model` instance and invoked each tick via `setup`,
 `start_step`, `step`, and `end_step`.
 """
 
-from typing import Optional, Type
+from typing import Optional
 
 from laser.cohorts.model import Model
+from laser.cohorts.utils import PropertyType
 
 import numpy as np
 from laser.generic.utils import ValuesMap
-
-PropertyType = tuple[str, int, Type[int] | Type[float] | np.dtype, int | float]
 
 
 class Susceptible:
@@ -23,17 +22,14 @@ class Susceptible:
     time step.  Initial S counts are read from the scenario at setup.
     """
 
-    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, validating: bool = False):
+    def __init__(self, model: Model, validating: bool = False):
         """Initialize the Susceptible component.
 
         Args:
             model (Model): The parent model instance.
-            mu (ValuesMap | None): Per-tick, per-node non-disease mortality rate.
-                Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
         self.model = model
-        self.mu = mu if mu is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
         self.validating = validating
 
         return
@@ -54,23 +50,12 @@ class Susceptible:
         return
 
     def step(self, tick: int) -> None:
-        """Apply non-disease mortality to susceptible individuals.
-
-        Draws deaths from a binomial distribution using the complement of the
-        survival probability derived from `mu`, subtracts them from S, and
-        accumulates them in `nodes.non_disease_mortality`.
+        """No-op step hook for the S compartment.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        # Non-disease mortality
-        probability = -np.expm1(-self.mu[tick])
-        sus = self.model.states.S
-        mortality = np.random.binomial(sus[tick + 1], probability).astype(sus.dtype)
-        self.model.nodes.non_disease_mortality[tick] += mortality
-        sus[tick + 1] -= mortality
-
-        return
+        pass
 
     def end_step(self, tick: int) -> None:
         """No-op end-of-step hook for the S compartment.
@@ -85,11 +70,10 @@ class Susceptible:
         """Return node properties required by this component.
 
         Returns:
-            list[PropertyType]: ``[("non_disease_mortality", nticks, np.int32, 0)]``
+            list[PropertyType]: Empty list; mortality tracking belongs to
+                ``NonDiseaseMortality``.
         """
-        return [
-            ("non_disease_mortality", self.model.params.nticks, np.int32, 0),
-        ]
+        return []
 
     @property
     def states(self) -> list[str]:
@@ -109,19 +93,16 @@ class Exposed:
     Initial E counts are read from the scenario at setup.
     """
 
-    def __init__(self, model: Model, sigma: ValuesMap, mu: Optional[ValuesMap] = None, validating: bool = False):
+    def __init__(self, model: Model, sigma: ValuesMap, validating: bool = False):
         """Initialize the Exposed component.
 
         Args:
             model (Model): The parent model instance.
             sigma (ValuesMap): Per-tick, per-node rate of progression from E to I.
-            mu (ValuesMap | None): Per-tick, per-node non-disease mortality rate.
-                Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
         self.model = model
         self.sigma = sigma
-        self.mu = mu if mu is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
         self.validating = validating
 
         return
@@ -142,24 +123,16 @@ class Exposed:
         return
 
     def step(self, tick: int) -> None:
-        """Apply non-disease mortality and disease progression to exposed individuals.
+        """Apply disease progression to exposed individuals.
 
-        Draws non-disease deaths from a binomial using `mu`, then draws newly
-        infectious individuals from a binomial using `sigma`, moving them from
-        E to I and recording the flow in `nodes.newly_infectious`.
+        Draws newly infectious individuals from a binomial using `sigma`,
+        moving them from E to I and recording the flow in `nodes.newly_infectious`.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        # Non-disease mortality
-        probability = -np.expm1(-self.mu[tick])
         exp = self.model.states.E
         inf = self.model.states.I
-        mortality = np.random.binomial(exp[tick + 1], probability).astype(exp.dtype)
-        self.model.nodes.non_disease_mortality[tick] += mortality
-        exp[tick + 1] -= mortality
-
-        # Disease progression - infectiousness
         probability = -np.expm1(-self.sigma[tick])
         newly_infectious = np.random.binomial(exp[tick + 1], probability)
         self.model.nodes.newly_infectious[tick] += newly_infectious
@@ -181,11 +154,9 @@ class Exposed:
         """Return node properties required by this component.
 
         Returns:
-            list[PropertyType]: Properties for non-disease mortality and newly
-                infectious flow counts.
+            list[PropertyType]: ``[("newly_infectious", nticks, np.int32, 0)]``
         """
         return [
-            ("non_disease_mortality", self.model.params.nticks, np.int32, 0),
             ("newly_infectious", self.model.params.nticks, np.int32, 0),
         ]
 
@@ -206,17 +177,14 @@ class Infectious:
     time step.  Initial I counts are read from the scenario at setup.
     """
 
-    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, validating: bool = False):
+    def __init__(self, model: Model, validating: bool = False):
         """Initialize the Infectious component.
 
         Args:
             model (Model): The parent model instance.
-            mu (ValuesMap | None): Per-tick, per-node non-disease mortality rate.
-                Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
         self.model = model
-        self.mu = mu if mu is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
         self.validating = validating
 
         return
@@ -237,23 +205,12 @@ class Infectious:
         return
 
     def step(self, tick: int) -> None:
-        """Apply non-disease mortality to infectious individuals.
-
-        Draws deaths from a binomial distribution using the complement of the
-        survival probability derived from `mu`, subtracts them from I, and
-        accumulates them in `nodes.non_disease_mortality`.
+        """No-op step hook for the I compartment.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        # Non-disease mortality
-        probability = -np.expm1(-self.mu[tick])
-        inf = self.model.states.I
-        mortality = np.random.binomial(inf[tick + 1], probability).astype(inf.dtype)
-        self.model.nodes.non_disease_mortality[tick] += mortality
-        inf[tick + 1] -= mortality
-
-        return
+        pass
 
     def end_step(self, tick: int) -> None:
         """No-op end-of-step hook for the I compartment.
@@ -268,11 +225,10 @@ class Infectious:
         """Return node properties required by this component.
 
         Returns:
-            list[PropertyType]: ``[("non_disease_mortality", nticks, np.int32, 0)]``
+            list[PropertyType]: Empty list; mortality tracking belongs to
+                ``NonDiseaseMortality``.
         """
-        return [
-            ("non_disease_mortality", self.model.params.nticks, np.int32, 0),
-        ]
+        return []
 
     @property
     def states(self) -> list[str]:
@@ -291,18 +247,16 @@ class InfectiousToRecovered(Infectious):
     moving them from I to R.  Used in SIR and SEIR model configurations.
     """
 
-    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the InfectiousToRecovered component.
 
         Args:
             model (Model): The parent model instance.
-            mu (ValuesMap | None): Per-tick, per-node non-disease mortality rate.
-                Defaults to zero if not provided.
             gamma (ValuesMap | None): Per-tick, per-node recovery rate (I → R).
                 Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
-        super().__init__(model, mu, validating)
+        super().__init__(model, validating)
         self.gamma = gamma if gamma is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
         return
 
@@ -314,18 +268,14 @@ class InfectiousToRecovered(Infectious):
     #     return super().start_step(tick)
 
     def step(self, tick: int) -> None:
-        """Apply non-disease mortality and recovery (I → R) to infectious individuals.
+        """Apply recovery (I → R) to infectious individuals.
 
-        Delegates non-disease mortality to the parent `Infectious.step`, then
-        draws newly recovered individuals from a binomial using `gamma`, moving
+        Draws newly recovered individuals from a binomial using `gamma`, moving
         them from I to R and recording the flow in `nodes.newly_recovered`.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        super().step(tick)  # handles non-disease mortality
-
-        # Disease progression - recovery
         inf = self.model.states.I
         probability = -np.expm1(-self.gamma[tick])
         newly_recovered = np.random.binomial(inf[tick + 1], probability).astype(inf.dtype)
@@ -368,18 +318,16 @@ class InfectiousToSusceptible(Infectious):
     where immunity is not retained after infection.
     """
 
-    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the InfectiousToSusceptible component.
 
         Args:
             model (Model): The parent model instance.
-            mu (ValuesMap | None): Per-tick, per-node non-disease mortality rate.
-                Defaults to zero if not provided.
             gamma (ValuesMap | None): Per-tick, per-node rate of recovery to S
                 (I → S).  Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
-        super().__init__(model, mu, validating)
+        super().__init__(model, validating)
         self.gamma = gamma if gamma is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
         return
 
@@ -391,18 +339,14 @@ class InfectiousToSusceptible(Infectious):
     #     return super().start_step(tick)
 
     def step(self, tick: int) -> None:
-        """Apply non-disease mortality and I → S recovery to infectious individuals.
+        """Apply I → S recovery to infectious individuals.
 
-        Delegates non-disease mortality to the parent `Infectious.step`, then
-        draws newly susceptible individuals from a binomial using `gamma`,
+        Draws newly susceptible individuals from a binomial using `gamma`,
         moving them from I to S and recording the flow in `nodes.newly_susceptible`.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        super().step(tick)  # handles non-disease mortality
-
-        # Disease progression - recovery
         inf = self.model.states.I
         probability = -np.expm1(-self.gamma[tick])
         newly_susceptible = np.random.binomial(inf[tick + 1], probability).astype(inf.dtype)
@@ -445,17 +389,14 @@ class Recovered:
     time step.  Initial R counts are read from the scenario at setup.
     """
 
-    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, validating: bool = False):
+    def __init__(self, model: Model, validating: bool = False):
         """Initialize the Recovered component.
 
         Args:
             model (Model): The parent model instance.
-            mu (ValuesMap | None): Per-tick, per-node non-disease mortality rate.
-                Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
         self.model = model
-        self.mu = mu if mu is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
         self.validating = validating
 
         return
@@ -476,23 +417,12 @@ class Recovered:
         return
 
     def step(self, tick: int) -> None:
-        """Apply non-disease mortality to recovered individuals.
-
-        Draws deaths from a binomial distribution using the complement of the
-        survival probability derived from `mu`, subtracts them from R, and
-        accumulates them in `nodes.non_disease_mortality`.
+        """No-op step hook for the R compartment.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        # Non-disease mortality
-        probability = -np.expm1(-self.mu[tick])
-        rec = self.model.states.R
-        mortality = np.random.binomial(rec[tick + 1], probability).astype(rec.dtype)
-        self.model.nodes.non_disease_mortality += mortality
-        rec[tick + 1] -= mortality
-
-        return
+        pass
 
     def end_step(self, tick: int) -> None:
         """No-op end-of-step hook for the R compartment.
@@ -507,11 +437,10 @@ class Recovered:
         """Return node properties required by this component.
 
         Returns:
-            list[PropertyType]: ``[("non_disease_mortality", nticks, np.int32, 0)]``
+            list[PropertyType]: Empty list; mortality tracking belongs to
+                ``NonDiseaseMortality``.
         """
-        return [
-            ("non_disease_mortality", self.model.params.nticks, np.int32, 0),
-        ]
+        return []
 
     @property
     def states(self) -> list[str]:
@@ -530,18 +459,16 @@ class RecoveredToSusceptible(Recovered):
     and moving them from R to S.  Used in SIRS model configurations.
     """
 
-    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, omega: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, omega: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the RecoveredToSusceptible component.
 
         Args:
             model (Model): The parent model instance.
-            mu (ValuesMap | None): Per-tick, per-node non-disease mortality rate.
-                Defaults to zero if not provided.
             omega (ValuesMap | None): Per-tick, per-node rate of waning immunity
                 (R → S).  Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
-        super().__init__(model, mu, validating)
+        super().__init__(model, validating)
 
         self.omega = omega if omega is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
 
@@ -555,18 +482,14 @@ class RecoveredToSusceptible(Recovered):
     #     return super().start_step(tick)
 
     def step(self, tick: int) -> None:
-        """Apply non-disease mortality and waning immunity (R → S) to recovered individuals.
+        """Apply waning immunity (R → S) to recovered individuals.
 
-        Delegates non-disease mortality to the parent `Recovered.step`, then
-        draws individuals with waned immunity from a binomial using `omega`,
+        Draws individuals with waned immunity from a binomial using `omega`,
         moving them from R to S and recording the flow in `nodes.newly_susceptible`.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        super().step(tick)  # handles non-disease mortality
-
-        # Disease progression - waning
         rec = self.model.states.R
         probability = -np.expm1(-self.omega[tick])
         newly_susceptible = np.random.binomial(rec[tick + 1], probability).astype(rec.dtype)

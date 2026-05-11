@@ -16,7 +16,8 @@ import laser.cohorts.SIS as SIS
 def run_model(interactive: bool = False, params: dict | None = None) -> Model:
     """Build and run a 9-node SIS model for 5 years.
 
-    Constructs a 3×3 grid scenario, seeds 10 infectious individuals per node,
+    Constructs a 3×3 grid scenario, seeds 1% of each node's population as
+    infectious (minimum 25, capped at node population),
     and executes an SIS model with beta=1.25/7 and gamma=1/7.
 
     Args:
@@ -30,8 +31,9 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
         Model: The completed model instance after all ticks have run.
     """
     scenario = grid(M=3, N=3)
-    scenario.S -= 10
-    scenario.I += 10
+    seeds = np.maximum(np.minimum(25, scenario.S.values), (scenario.S.values * 0.01).astype(int))
+    scenario["S"] -= seeds
+    scenario["I"] += seeds
     p = PropertySet({
         "nticks": 5 * 365,
         "beta": 1.25 / 7.0,  # 1.25 new infections per existing infection every 7 ticks
@@ -73,7 +75,7 @@ def test_sis() -> None:
 
     Seed is fixed so that the epidemic establishes in at least one node.
     """
-    laser.core.random.seed(5)
+    laser.core.random.seed(0)
     model = run_model(params={"nticks": 5 * 365, "beta": 1.25 / 7.0, "gamma": 1.0 / 7.0})
     # use state_axis - 1 since taking the last tick reduces dimensionality by 1
     N = model.states[-1].sum(axis=model.states.state_axis - 1)

@@ -16,7 +16,8 @@ import laser.cohorts.SEIRS as SEIRS
 def run_model(interactive: bool = False, params: dict | None = None) -> Model:
     """Build and run a 9-node SEIRS model for 5 years.
 
-    Constructs a 3×3 grid scenario, seeds 10 infectious individuals per node,
+    Constructs a 3×3 grid scenario, seeds 1% of each node's population as
+    infectious (minimum 25, capped at node population),
     and executes an SEIRS model with beta=1.5/7, sigma=1/7, and gamma=1/7.
 
     Args:
@@ -30,8 +31,9 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
         Model: The completed model instance after all ticks have run.
     """
     scenario = grid(M=3, N=3)
-    scenario.S -= 10
-    scenario.I += 10
+    seeds = np.maximum(np.minimum(25, scenario.S.values), (scenario.S.values * 0.01).astype(int))
+    scenario["S"] -= seeds
+    scenario["I"] += seeds
     p = PropertySet({
         "nticks": 5 * 365,
         # "beta": 1.386/7.0, # 1.386 new infections per existing infection every 7 ticks

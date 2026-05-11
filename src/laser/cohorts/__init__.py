@@ -19,6 +19,8 @@ from .components import TransmissionSI
 from .components import TransmissionSE
 from .model import Model
 from .statearray import StateArray
+from .utils import PropertyType
+from .vitaldynamics import NonDiseaseMortality
 
 __all__ = [
     "Exposed",
@@ -26,6 +28,8 @@ __all__ = [
     "InfectiousToRecovered",
     "InfectiousToSusceptible",
     "Model",
+    "NonDiseaseMortality",
+    "PropertyType",
     "Recovered",
     "RecoveredToSusceptible",
     "StateArray",
