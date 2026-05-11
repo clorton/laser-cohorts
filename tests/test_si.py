@@ -8,6 +8,18 @@ import laser.cohorts.SI as SI
 
 
 def run_model(interactive: bool = False) -> Model:
+    """Build and run a 9-node SI model for 5 years.
+
+    Constructs a 3×3 grid scenario, seeds 10 infectious individuals per node,
+    and executes an SI model (no recovery) with beta=1/30.
+
+    Args:
+        interactive (bool): If True, display a matplotlib plot of compartment
+            trajectories.
+
+    Returns:
+        Model: The completed model instance after all ticks have run.
+    """
     scenario = grid(M=3, N=3)
     scenario.S -= 10
     scenario.I += 10
@@ -44,6 +56,10 @@ def run_model(interactive: bool = False) -> Model:
 
 
 def test_si():
+    """Given a 9-node SI model (no recovery), when the model runs for 5 years,
+    then the susceptible compartment is fully depleted and all individuals are
+    infectious.
+    """
     model = run_model(interactive=False)
     assert np.all(model.states.S[-1] == 0)
     # use state_axis - 1 since taking the last tick reduces dimensionality by 1

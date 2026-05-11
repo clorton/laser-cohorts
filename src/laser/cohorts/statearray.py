@@ -1,3 +1,5 @@
+"""StateArray: a NumPy ndarray subclass with named compartment access."""
+
 import numpy as np
 
 
@@ -40,8 +42,7 @@ class StateArray(np.ndarray):
             default_value (number): The default value to fill the array with if source_array is not provided
 
         Returns:
-
-            (StateArray): An instance of StateArray with the specified properties
+            StateArray: An instance of StateArray with the specified properties.
         """
 
         if (source_array is not None) and (shape is not None):
@@ -83,7 +84,15 @@ class StateArray(np.ndarray):
 
     @staticmethod
     def _cache_state_views(obj):
+        """Build and cache a plain-ndarray view for each named state compartment.
 
+        Pre-computes an ndarray slice selecting each state's index along
+        `state_axis` so that named attribute access (e.g. ``arr.S``) returns
+        the view without recomputing the index each time.
+
+        Args:
+            obj (StateArray): The StateArray instance whose views are to be cached.
+        """
         state_axis = obj._state_axis
         state_names = obj._state_names
         shape = obj.shape
@@ -101,6 +110,17 @@ class StateArray(np.ndarray):
         return
 
     def __array_finalize__(self, obj):
+        """Propagate StateArray metadata to views and new instances.
+
+        Called by NumPy whenever a new StateArray is created via slicing, view
+        casting, or ufunc output.  Copies `_state_axis` and `_state_names` from
+        the template object and re-caches state views when the shape along the
+        state axis is still consistent.
+
+        Args:
+            obj (np.ndarray | None): The array from which this instance was derived,
+                or ``None`` during direct construction.
+        """
         if obj is None:
             return
         self._state_axis = getattr(obj, "_state_axis", None)
@@ -117,6 +137,22 @@ class StateArray(np.ndarray):
         return
 
     def __getattr__(self, name):
+        """Return the cached ndarray view for a registered state name.
+
+        Only invoked when normal attribute lookup has already failed.  Checks
+        the ``_state_to_view`` mapping and returns the pre-computed slice if
+        `name` is a registered state name, otherwise delegates to
+        ``ndarray.__getattribute__``.
+
+        Args:
+            name (str): Attribute name being looked up.
+
+        Returns:
+            np.ndarray: The cached state-compartment view.
+
+        Raises:
+            AttributeError: If `name` is not a registered state name.
+        """
         # only called if regular attribute lookup fails
 
         mapping = getattr(self, "_state_to_view", None)
@@ -126,6 +162,23 @@ class StateArray(np.ndarray):
         return super().__getattribute__(name)
 
     def __setattr__(self, name, value):
+        """Assign a value to a registered state compartment or an internal attribute.
+
+        Private attributes (prefixed with ``_``) bypass the state-name check and
+        are stored normally.  For public names, if the name matches a registered
+        state compartment the value is broadcast-assigned into the cached view;
+        otherwise an ``AttributeError`` is raised to prevent silent typo-based
+        compartment creation.
+
+        Args:
+            name (str): Attribute name to assign.
+            value: Value to assign.  For state names this is broadcast into the
+                existing ndarray view via ``view[...] = value``.
+
+        Raises:
+            AttributeError: If `name` is not a registered state name, ``"dtype"``,
+                or ``"shape"``.
+        """
         # Intercept field assignment like x.E = ...
         if name.startswith("_"):
             super().__setattr__(name, value)
@@ -147,21 +200,54 @@ class StateArray(np.ndarray):
         return
 
     def __getitem__(self, key):
+        """Index the underlying ndarray, always returning a plain ndarray.
+
+        Delegates to the underlying ``np.ndarray`` view so that all indexing
+        operations (integer, slice, tuple, fancy) return base ndarrays rather
+        than StateArray subclass instances.
+
+        Args:
+            key: Any valid NumPy index (int, slice, tuple, array, etc.).
+
+        Returns:
+            np.ndarray: The indexed data as a plain ndarray.
+        """
         return self.view(np.ndarray)[key]
 
     @property
     def state_names(self):
-        """Return the list of state compartment names."""
+        """Return the tuple of registered state compartment names.
+
+        Returns:
+            tuple[str, ...] | None: Compartment names in axis order, or ``None``
+                if the instance was created via view casting without metadata.
+        """
         # We can just return the tuple, it's immutable
         return self._state_names
 
     @property
     def state_axis(self) -> int:
-        """Get the axis index for the state compartments."""
+        """Return the axis index along which state compartments are stored.
+
+        Returns:
+            int: Zero-based axis index for the state dimension.
+
+        Raises:
+            RuntimeError: If ``_state_axis`` is ``None``, which occurs when the
+                instance was created via view casting without metadata.
+        """
         if self._state_axis is None:
             raise RuntimeError("state_axis is None")
         return self._state_axis
 
     def get_state_index(self, name):
-        """Get the numeric index for a state compartment name."""
+        """Return the numeric axis index for a named state compartment.
+
+        Args:
+            name (str): State compartment name to look up.
+
+        Returns:
+            int | None: Zero-based index of `name` along the state axis, or
+                ``None`` if `name` is not registered or state metadata is absent.
+        """
         return self._state_names.index(name) if (self._state_names is not None) and (name in self._state_names) else None

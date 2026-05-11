@@ -9,6 +9,18 @@ import laser.cohorts.SIS as SIS
 
 
 def run_model(interactive: bool = False) -> Model:
+    """Build and run a 9-node SIS model for 5 years.
+
+    Constructs a 3×3 grid scenario, seeds 10 infectious individuals per node,
+    and executes an SIS model with beta=1.25/7 and gamma=1/7.
+
+    Args:
+        interactive (bool): If True, display a matplotlib plot of compartment
+            trajectories.
+
+    Returns:
+        Model: The completed model instance after all ticks have run.
+    """
     scenario = grid(M=3, N=3)
     scenario.S -= 10
     scenario.I += 10
@@ -48,6 +60,10 @@ def run_model(interactive: bool = False) -> Model:
 
 
 def test_sis():
+    """Given a 9-node SIS model with parameters above the epidemic threshold, when the
+    model runs for 5 years, then the disease reaches an endemic equilibrium with both
+    susceptible and infectious individuals present in at least some nodes.
+    """
     model = run_model(interactive=False)
     # use state_axis - 1 since taking the last tick reduces dimensionality by 1
     N = model.states[-1].sum(axis=model.states.state_axis - 1)

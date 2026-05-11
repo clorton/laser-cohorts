@@ -1,3 +1,10 @@
+"""Ad-hoc script for manual inspection of component properties and states.
+
+This file is not a pytest test module; it is a standalone script intended for
+interactive exploration.  Consider converting to a proper test if assertions are
+desired.
+"""
+
 import laser.core as core
 import laser.core.utils as utils
 

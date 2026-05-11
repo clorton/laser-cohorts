@@ -1,3 +1,9 @@
+"""Cohort-based compartmental disease modelling for the LASER framework.
+
+Provides composable epidemiological compartments and transmission components
+for constructing SI, SIR, SEIR, SIS, SIRS, SEI, SEIS, and SEIRS models.
+"""
+
 from importlib.metadata import version
 
 __version__ = version("laser.cohorts")

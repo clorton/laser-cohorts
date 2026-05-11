@@ -9,6 +9,18 @@ import laser.cohorts.SIRS as SIRS
 
 
 def run_model(interactive: bool = False) -> Model:
+    """Build and run a 9-node SIRS model for 5 years.
+
+    Constructs a 3×3 grid scenario, seeds 10 infectious individuals per node,
+    and executes an SIRS model with beta=1.5/7, gamma=1/7, and waning=1/30.
+
+    Args:
+        interactive (bool): If True, display a matplotlib plot of compartment
+            trajectories.
+
+    Returns:
+        Model: The completed model instance after all ticks have run.
+    """
     scenario = grid(M=3, N=3)
     scenario.S -= 10
     scenario.I += 10
@@ -54,6 +66,10 @@ def run_model(interactive: bool = False) -> Model:
 
 
 def test_sirs():
+    """Given a 9-node SIRS model with waning immunity, when the model runs for 5 years,
+    then the compartment ordering S > R > I holds at all nodes, reflecting the waning
+    immunity dynamic that recycles recovered individuals back to susceptible.
+    """
     model = run_model(interactive=False)
     assert np.all(model.states.S[-1] > model.states.R[-1])
     assert np.all(model.states.I[-1] >= 0)

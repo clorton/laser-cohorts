@@ -9,6 +9,18 @@ import laser.cohorts.SEIS as SEIS
 
 
 def run_model(interactive: bool = False) -> Model:
+    """Build and run a 9-node SEIS model for 5 years.
+
+    Constructs a 3×3 grid scenario, seeds 10 infectious individuals per node,
+    and executes an SEIS model with beta=1/30, sigma=1/7, and gamma=1/180.
+
+    Args:
+        interactive (bool): If True, display a matplotlib plot of compartment
+            trajectories.
+
+    Returns:
+        Model: The completed model instance after all ticks have run.
+    """
     scenario = grid(M=3, N=3)
     scenario.S -= 10
     scenario.I += 10
@@ -53,6 +65,10 @@ def run_model(interactive: bool = False) -> Model:
 
 
 def test_seis():
+    """Given a 9-node SEIS model with slow transmission and very slow recovery, when the
+    model runs for 5 years, then the disease reaches an endemic state with all three
+    compartments populated and the ordering E < S < I holding at every node.
+    """
     model = run_model(interactive=False)
     assert np.all(model.states.S[-1] > 0)
     assert np.all(model.states.S[-1] < model.states.I[-1])
