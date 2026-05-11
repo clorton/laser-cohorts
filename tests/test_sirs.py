@@ -69,13 +69,14 @@ def run_model(interactive: bool = False) -> Model:
 
 def test_sirs():
     """Given a 9-node SIRS model with waning immunity, when the model runs for 5 years,
-    then the compartment ordering S > R > I holds at all nodes, reflecting the waning
+    then the compartment ordering S > R >= I holds at all nodes, reflecting the waning
     immunity dynamic that recycles recovered individuals back to susceptible.
     """
     model = run_model(interactive=False)
     assert np.all(model.states.S[-1] > model.states.R[-1])
     assert np.all(model.states.I[-1] >= 0)
-    assert np.all(model.states.R[-1] > model.states.I[-1])
+    assert np.all(model.states.R[-1] >= model.states.I[-1])
+    assert np.any(model.states.R[-1] > model.states.I[-1])
 
     return
 

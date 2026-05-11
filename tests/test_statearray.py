@@ -234,7 +234,11 @@ NUM_AGES = 10
 
 @pytest.fixture
 def zero_data() -> np.ndarray:
-    """Return a zeroed (6, 32) int64 array."""
+    """Return a zeroed (6, 32) int64 array.
+
+    Returns:
+        np.ndarray: Shape (NUM_STATES, NUM_PATCHES), dtype int64, all zeros.
+    """
     return np.zeros((NUM_STATES, NUM_PATCHES), dtype=np.int64)
 
 
@@ -244,6 +248,9 @@ def sample_data() -> np.ndarray:
 
     This makes it trivial to assert correct row selection: ``arr.S`` should be
     all 1s, ``arr.E`` all 2s, and so on.
+
+    Returns:
+        np.ndarray: Shape (NUM_STATES, NUM_PATCHES), dtype int64, row i filled with i + 1.
     """
     data = np.zeros((NUM_STATES, NUM_PATCHES), dtype=np.int64)
     for i in range(NUM_STATES):
@@ -256,6 +263,10 @@ def tsp_data() -> np.ndarray:
     """Return a (100, 6, 32) int64 array where ``arr[:, i, :]`` is filled with ``i + 1``.
 
     Used to test the ticks × states × patches layout with states on axis 1.
+
+    Returns:
+        np.ndarray: Shape (NUM_TICKS, NUM_STATES, NUM_PATCHES), dtype int64,
+            state slice i filled with i + 1.
     """
     data = np.zeros((NUM_TICKS, NUM_STATES, NUM_PATCHES), dtype=np.int64)
     for i in range(NUM_STATES):
@@ -268,6 +279,10 @@ def sap_data() -> np.ndarray:
     """Return a (6, 10, 32) int64 array where ``arr[i, :, :]`` is filled with ``i + 1``.
 
     Used to test the states × ages × patches layout with states on axis 0.
+
+    Returns:
+        np.ndarray: Shape (NUM_STATES, NUM_AGES, NUM_PATCHES), dtype int64,
+            state slice i filled with i + 1.
     """
     data = np.zeros((NUM_STATES, NUM_AGES, NUM_PATCHES), dtype=np.int64)
     for i in range(NUM_STATES):
@@ -280,6 +295,10 @@ def tsap_data() -> np.ndarray:
     """Return a (100, 6, 10, 32) int64 array where ``arr[:, i, :, :]`` is filled with ``i + 1``.
 
     Used to test the ticks × states × ages × patches layout with states on axis 1.
+
+    Returns:
+        np.ndarray: Shape (NUM_TICKS, NUM_STATES, NUM_AGES, NUM_PATCHES), dtype int64,
+            state slice i filled with i + 1.
     """
     data = np.zeros((NUM_TICKS, NUM_STATES, NUM_AGES, NUM_PATCHES), dtype=np.int64)
     for i in range(NUM_STATES):

@@ -784,7 +784,7 @@ class TransmissionSE(TransmissionCommon):
     #     return
 
     @property
-    def properties(self) -> list:
+    def properties(self) -> list[PropertyType]:
         """Return node properties required by this component.
 
         Returns:

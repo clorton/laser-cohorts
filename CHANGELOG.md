@@ -19,6 +19,10 @@
 - `tests/test_statearray.py` `TestConstructionPaths.test_view_casting` and `test_new_from_template`: replaced embedded code-snippet docstrings with Given/When/Then descriptions
 - `tests/test_statearray.py` `TestConstructionPaths.test_from_ufunc`: added missing docstring
 
+### Fixed (third pass — final audit items)
+- `tests/test_statearray.py` fixtures `zero_data`, `sample_data`, `tsp_data`, `sap_data`, `tsap_data`: added formal `Returns:` sections
+- `components.py` `TransmissionSE.properties`: corrected return type annotation from `-> list` to `-> list[PropertyType]` (linter fix)
+
 ### Added (second pass — discovered in post-edit audit)
 - Module docstrings to `src/laser/cohorts/SI.py`, `SIR.py`, `SIS.py`, `SIRS.py`, `SEI.py`, `SEIR.py`, `SEIS.py`, `SEIRS.py` (model preset files omitted from first pass)
 - Module docstring to `src/laser/cohorts/vitaldynamics.py` (empty placeholder file)
