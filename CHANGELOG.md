@@ -67,6 +67,16 @@
 - `components.py` and `vitaldynamics.py`: removed local `PropertyType` definitions; now import from `laser.cohorts.utils`
 - `laser.cohorts.PropertyType` exported from `__init__.py` for use in custom component authors
 
+### Changed (component parameter renames)
+- `components.py` `Exposed.__init__`: renamed parameter `sigma` → `r_progression`; updated `self.sigma` → `self.r_progression` and all internal references
+- `components.py` `InfectiousToRecovered.__init__` and `InfectiousToSusceptible.__init__`: renamed parameter `gamma` → `r_recovery`; updated `self.gamma` → `self.r_recovery` and all internal references
+- `components.py` `RecoveredToSusceptible.__init__`: renamed parameter `omega` → `r_waning`; updated `self.omega` → `self.r_waning` and all internal references
+- All 7 affected model integration test files (`test_sir.py`, `test_sis.py`, `test_sirs.py`, `test_sei.py`, `test_seir.py`, `test_seis.py`, `test_seirs.py`): updated component constructor keyword arguments, local variable names, `PropertySet` keys, and docstrings to match new parameter names
+
+### Changed (NonDiseaseMortality states parameter)
+- `vitaldynamics.py`: `NonDiseaseMortality.__init__` `states` parameter type widened from `set[str] | None` to `Iterable[str] | None` (accepts list, tuple, set, generator, or any iterable); iterable is materialized to a `set` in `__init__` to support one-shot iterables; `Optional` import replaced with `collections.abc.Iterable`
+- `tests/test_mortality.py`: added `test_states_as_list_restricts_mortality` and `test_states_as_tuple_restricts_mortality`; updated existing set-form test docstring to note it tests set specifically
+
 ### Changed (initial infection seeding)
 - All 8 model integration tests now seed infections as `max(min(25, pop), int(0.01 * pop))` per node instead of a fixed count of 10, making epidemic establishment reliable even in large-population nodes
 - All 6 stochastic test seeds unified to 0 (was 0/0/0/0/0/11) after re-calibration against the new initial conditions

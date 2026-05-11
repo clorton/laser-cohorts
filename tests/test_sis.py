@@ -18,13 +18,13 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
 
     Constructs a 3×3 grid scenario, seeds 1% of each node's population as
     infectious (minimum 25, capped at node population),
-    and executes an SIS model with beta=1.25/7 and gamma=1/7.
+    and executes an SIS model with beta=1.25/7 and r_recovery=1/7.
 
     Args:
         interactive (bool): If True, display a matplotlib plot of compartment
             trajectories.
         params (dict | None): Optional parameter overrides. Keys may include
-            ``"nticks"``, ``"beta"``, and ``"gamma"``. Missing keys use the
+            ``"nticks"``, ``"beta"``, and ``"r_recovery"``. Missing keys use the
             default values.
 
     Returns:
@@ -37,17 +37,17 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
     p = PropertySet({
         "nticks": 5 * 365,
         "beta": 1.25 / 7.0,  # 1.25 new infections per existing infection every 7 ticks
-        "gamma": 1.0 / 7.0,  # 7 days to recovery
+        "r_recovery": 1.0 / 7.0,  # 7 days to recovery
         **(params or {}),
     })
     model = Model(scenario, p)
 
     betas = ValuesMap.from_scalar(p.beta, p.nticks, len(scenario))
-    gammas = ValuesMap.from_scalar(p.gamma, p.nticks, len(scenario))
+    r_recovery = ValuesMap.from_scalar(p.r_recovery, p.nticks, len(scenario))
 
     components = [
         SIS.Susceptible(model),
-        SIS.Infectious(model, gamma=gammas),
+        SIS.Infectious(model, r_recovery=r_recovery),
         SIS.Transmission(model, beta=betas),
     ]
 
@@ -76,7 +76,7 @@ def test_sis() -> None:
     Seed is fixed so that the epidemic establishes in at least one node.
     """
     laser.core.random.seed(0)
-    model = run_model(params={"nticks": 5 * 365, "beta": 1.25 / 7.0, "gamma": 1.0 / 7.0})
+    model = run_model(params={"nticks": 5 * 365, "beta": 1.25 / 7.0, "r_recovery": 1.0 / 7.0})
     # use state_axis - 1 since taking the last tick reduces dimensionality by 1
     N = model.states[-1].sum(axis=model.states.state_axis - 1)
     assert np.any(model.states.S[-1] < N)  # use any since we might have local elimination

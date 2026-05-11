@@ -18,13 +18,13 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
 
     Constructs a 3×3 grid scenario, seeds 1% of each node's population as
     infectious (minimum 25, capped at node population),
-    and executes an SEIRS model with beta=1.5/7, sigma=1/7, and gamma=1/7.
+    and executes an SEIRS model with beta=1.5/7, r_progression=1/7, and r_recovery=1/7.
 
     Args:
         interactive (bool): If True, display a matplotlib plot of compartment
             trajectories.
         params (dict | None): Optional parameter overrides. Keys may include
-            ``"nticks"``, ``"beta"``, ``"sigma"``, and ``"gamma"``. Missing
+            ``"nticks"``, ``"beta"``, ``"r_progression"``, and ``"r_recovery"``. Missing
             keys use the default values.
 
     Returns:
@@ -38,23 +38,23 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
         "nticks": 5 * 365,
         # "beta": 1.386/7.0, # 1.386 new infections per existing infection every 7 ticks
         "beta": 1.5 / 7.0,
-        "sigma": 1.0 / 7.0,  # 7 ticks of incubation (exposure)
-        "gamma": 1.0 / 7.0,  # 7 ticks to recovery
-        "omega": 1.0 / 182.5, # 1/2 year to waning
+        "r_progression": 1.0 / 7.0,  # 7 ticks of incubation (exposure)
+        "r_recovery": 1.0 / 7.0,  # 7 ticks to recovery
+        "r_waning": 1.0 / 182.5,  # 1/2 year to waning
         **(params or {}),
     })
     model = Model(scenario, p)
 
     betas = ValuesMap.from_scalar(p.beta, p.nticks, len(scenario))
-    sigmas = ValuesMap.from_scalar(p.sigma, p.nticks, len(scenario))
-    gammas = ValuesMap.from_scalar(p.gamma, p.nticks, len(scenario))
-    omegas = ValuesMap.from_scalar(p.omega, p.nticks, len(scenario))
+    r_progression = ValuesMap.from_scalar(p.r_progression, p.nticks, len(scenario))
+    r_recovery = ValuesMap.from_scalar(p.r_recovery, p.nticks, len(scenario))
+    r_waning = ValuesMap.from_scalar(p.r_waning, p.nticks, len(scenario))
 
     components = [
         SEIRS.Susceptible(model),
-        SEIRS.Exposed(model, sigma=sigmas),
-        SEIRS.Infectious(model, gamma=gammas),
-        SEIRS.Recovered(model, omega=omegas),
+        SEIRS.Exposed(model, r_progression=r_progression),
+        SEIRS.Infectious(model, r_recovery=r_recovery),
+        SEIRS.Recovered(model, r_waning=r_waning),
         SEIRS.Transmission(model, beta=betas),
     ]
 
@@ -89,7 +89,7 @@ def test_seirs() -> None:
     Seed is fixed so that no node experiences stochastic epidemic extinction.
     """
     laser.core.random.seed(0)
-    model = run_model(params={"nticks": 5 * 365, "beta": 1.5 / 7.0, "sigma": 1.0 / 7.0, "gamma": 1.0 / 7.0})
+    model = run_model(params={"nticks": 5 * 365, "beta": 1.5 / 7.0, "r_progression": 1.0 / 7.0, "r_recovery": 1.0 / 7.0})
     assert np.all(model.states.S[-1] > model.states.R[-1])
     assert np.all(model.states.E[-1] > model.states.I[-1])
     assert np.all(model.states.I[-1] > 0)

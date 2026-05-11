@@ -211,3 +211,4 @@ __marimo__/
 
 # other
 tmp/
+.claude/settings.local.json

@@ -18,13 +18,13 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
 
     Constructs a 3×3 grid scenario, seeds 1% of each node's population as
     infectious (minimum 25, capped at node population),
-    and executes a standard SIR model with beta=1.5/7 and gamma=1/7.
+    and executes a standard SIR model with beta=1.5/7 and r_recovery=1/7.
 
     Args:
         interactive (bool): If True, display a matplotlib plot of compartment
             trajectories.
         params (dict | None): Optional parameter overrides. Keys may include
-            ``"nticks"``, ``"beta"``, and ``"gamma"``. Missing keys use the
+            ``"nticks"``, ``"beta"``, and ``"r_recovery"``. Missing keys use the
             default values.
 
     Returns:
@@ -38,17 +38,17 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
         "nticks": 5 * 365,
         # "beta": 1.386/7.0, # 1.386 new infections per existing infection every 7 ticks
         "beta": 1.5 / 7.0,
-        "gamma": 1.0 / 7.0,  # 7 ticks to recovery
+        "r_recovery": 1.0 / 7.0,  # 7 ticks to recovery
         **(params or {}),
     })
     model = Model(scenario, p)
 
     betas = ValuesMap.from_scalar(p.beta, p.nticks, len(scenario))
-    gammas = ValuesMap.from_scalar(p.gamma, p.nticks, len(scenario))
+    r_recovery = ValuesMap.from_scalar(p.r_recovery, p.nticks, len(scenario))
 
     components = [
         SIR.Susceptible(model),
-        SIR.Infectious(model, gamma=gammas),
+        SIR.Infectious(model, r_recovery=r_recovery),
         SIR.Recovered(model),
         SIR.Transmission(model, beta=betas),
     ]
@@ -81,7 +81,7 @@ def test_sir() -> None:
     Seed is fixed so that no node experiences stochastic epidemic extinction.
     """
     laser.core.random.seed(0)
-    model = run_model(params={"nticks": 5 * 365, "beta": 1.5 / 7.0, "gamma": 1.0 / 7.0})
+    model = run_model(params={"nticks": 5 * 365, "beta": 1.5 / 7.0, "r_recovery": 1.0 / 7.0})
     # use state_axis - 1 since taking the last tick reduces dimensionality by 1
     N = model.states[-1].sum(axis=model.states.state_axis - 1)
     assert np.allclose(model.states.S[-1] / N, 0.5, rtol=0.15)

@@ -66,7 +66,7 @@ def test_deaths_accumulated_in_node_property() -> None:
 
 def test_subset_states_leaves_other_states_unchanged() -> None:
     """Given a model with S=500 and I=300, when NonDiseaseMortality runs with
-    mu=inf and states={'S'}, then S becomes 0 while I remains 300.
+    mu=inf and states={'S'} (a set), then S becomes 0 while I remains 300.
 
     Failure implies the state mask is not restricting mortality correctly.
     """
@@ -77,6 +77,44 @@ def test_subset_states_leaves_other_states_unchanged() -> None:
         Susceptible(model),
         Infectious(model),
         NonDiseaseMortality(model, mu=np.inf, states={"S"}),
+    ]
+    model.run()
+    assert np.all(model.states.S[-1] == 0)
+    assert np.all(model.states.I[-1] == 300)
+
+
+def test_states_as_list_restricts_mortality() -> None:
+    """Given a model with S=500 and I=300, when NonDiseaseMortality runs with
+    mu=inf and states=['S'] (a list), then S becomes 0 while I remains 300.
+
+    Failure implies list iterables are not accepted or not handled correctly.
+    """
+    scenario = _scenario(s_init=500, i_init=300)
+    params = PropertySet({"nticks": 1})
+    model = Model(scenario, params)
+    model.components = [
+        Susceptible(model),
+        Infectious(model),
+        NonDiseaseMortality(model, mu=np.inf, states=["S"]),
+    ]
+    model.run()
+    assert np.all(model.states.S[-1] == 0)
+    assert np.all(model.states.I[-1] == 300)
+
+
+def test_states_as_tuple_restricts_mortality() -> None:
+    """Given a model with S=500 and I=300, when NonDiseaseMortality runs with
+    mu=inf and states=('S',) (a tuple), then S becomes 0 while I remains 300.
+
+    Failure implies tuple iterables are not accepted or not handled correctly.
+    """
+    scenario = _scenario(s_init=500, i_init=300)
+    params = PropertySet({"nticks": 1})
+    model = Model(scenario, params)
+    model.components = [
+        Susceptible(model),
+        Infectious(model),
+        NonDiseaseMortality(model, mu=np.inf, states=("S",)),
     ]
     model.run()
     assert np.all(model.states.S[-1] == 0)

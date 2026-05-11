@@ -4,7 +4,7 @@ Provides NonDiseaseMortality, a component that applies background (non-disease)
 mortality to one or more compartment states each simulation tick.
 """
 
-from typing import Optional
+from collections.abc import Iterable
 
 import numpy as np
 from laser.generic.utils import ValuesMap
@@ -26,14 +26,14 @@ class NonDiseaseMortality:
 
     Example:
         >>> ndm = NonDiseaseMortality(model, mu=1/365/70)  # ~70-year life expectancy
-        >>> ndm_s_only = NonDiseaseMortality(model, mu=1/365/70, states={"S"})
+        >>> ndm_s_only = NonDiseaseMortality(model, mu=1/365/70, states=["S"])
     """
 
     def __init__(
         self,
         model: Model,
         mu: int | float | ValuesMap | np.ndarray,
-        states: Optional[set[str]] = None,
+        states: Iterable[str] | None = None,
     ) -> None:
         """Initialize the NonDiseaseMortality component.
 
@@ -43,8 +43,9 @@ class NonDiseaseMortality:
                 mortality rate.  A scalar is broadcast to all ticks and nodes via
                 ``ValuesMap.from_scalar``; a ``ValuesMap`` or 2-D array of shape
                 ``(nticks, nnodes)`` is used directly.
-            states (set[str] | None): Names of compartment states to apply
-                mortality to.  ``None`` applies mortality to every state in
+            states (Iterable[str] | None): Names of compartment states to apply
+                mortality to.  Accepts any iterable (list, tuple, set, generator,
+                etc.).  ``None`` applies mortality to every state in
                 ``model.states``.
         """
         self.model = model
@@ -52,7 +53,7 @@ class NonDiseaseMortality:
             self.mu = ValuesMap.from_scalar(mu, model.params.nticks, len(model.scenario))
         else:
             self.mu = mu
-        self._requested_states = states
+        self._requested_states = set(states) if states is not None else None
         self._state_views: list[np.ndarray] = []
 
     def setup(self) -> None:

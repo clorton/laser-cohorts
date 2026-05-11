@@ -93,16 +93,16 @@ class Exposed:
     Initial E counts are read from the scenario at setup.
     """
 
-    def __init__(self, model: Model, sigma: ValuesMap, validating: bool = False):
+    def __init__(self, model: Model, r_progression: ValuesMap, validating: bool = False):
         """Initialize the Exposed component.
 
         Args:
             model (Model): The parent model instance.
-            sigma (ValuesMap): Per-tick, per-node rate of progression from E to I.
+            r_progression (ValuesMap): Per-tick, per-node rate of progression from E to I.
             validating (bool): Enable validation checks during simulation.
         """
         self.model = model
-        self.sigma = sigma
+        self.r_progression = r_progression
         self.validating = validating
 
         return
@@ -125,7 +125,7 @@ class Exposed:
     def step(self, tick: int) -> None:
         """Apply disease progression to exposed individuals.
 
-        Draws newly infectious individuals from a binomial using `sigma`,
+        Draws newly infectious individuals from a binomial using `r_progression`,
         moving them from E to I and recording the flow in `nodes.newly_infectious`.
 
         Args:
@@ -133,7 +133,7 @@ class Exposed:
         """
         exp = self.model.states.E
         inf = self.model.states.I
-        probability = -np.expm1(-self.sigma[tick])
+        probability = -np.expm1(-self.r_progression[tick])
         newly_infectious = np.random.binomial(exp[tick + 1], probability)
         self.model.nodes.newly_infectious[tick] += newly_infectious
         exp[tick + 1] -= newly_infectious
@@ -247,17 +247,17 @@ class InfectiousToRecovered(Infectious):
     moving them from I to R.  Used in SIR and SEIR model configurations.
     """
 
-    def __init__(self, model: Model, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, r_recovery: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the InfectiousToRecovered component.
 
         Args:
             model (Model): The parent model instance.
-            gamma (ValuesMap | None): Per-tick, per-node recovery rate (I → R).
+            r_recovery (ValuesMap | None): Per-tick, per-node recovery rate (I → R).
                 Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
         super().__init__(model, validating)
-        self.gamma = gamma if gamma is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
+        self.r_recovery = r_recovery if r_recovery is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
         return
 
     # def setup(self) -> None:
@@ -270,14 +270,14 @@ class InfectiousToRecovered(Infectious):
     def step(self, tick: int) -> None:
         """Apply recovery (I → R) to infectious individuals.
 
-        Draws newly recovered individuals from a binomial using `gamma`, moving
+        Draws newly recovered individuals from a binomial using `r_recovery`, moving
         them from I to R and recording the flow in `nodes.newly_recovered`.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
         inf = self.model.states.I
-        probability = -np.expm1(-self.gamma[tick])
+        probability = -np.expm1(-self.r_recovery[tick])
         newly_recovered = np.random.binomial(inf[tick + 1], probability).astype(inf.dtype)
         self.model.nodes.newly_recovered[tick] += newly_recovered
         inf[tick + 1] -= newly_recovered
@@ -318,17 +318,17 @@ class InfectiousToSusceptible(Infectious):
     where immunity is not retained after infection.
     """
 
-    def __init__(self, model: Model, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, r_recovery: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the InfectiousToSusceptible component.
 
         Args:
             model (Model): The parent model instance.
-            gamma (ValuesMap | None): Per-tick, per-node rate of recovery to S
+            r_recovery (ValuesMap | None): Per-tick, per-node rate of recovery to S
                 (I → S).  Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
         super().__init__(model, validating)
-        self.gamma = gamma if gamma is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
+        self.r_recovery = r_recovery if r_recovery is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
         return
 
     # def setup(self) -> None:
@@ -341,14 +341,14 @@ class InfectiousToSusceptible(Infectious):
     def step(self, tick: int) -> None:
         """Apply I → S recovery to infectious individuals.
 
-        Draws newly susceptible individuals from a binomial using `gamma`,
+        Draws newly susceptible individuals from a binomial using `r_recovery`,
         moving them from I to S and recording the flow in `nodes.newly_susceptible`.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
         inf = self.model.states.I
-        probability = -np.expm1(-self.gamma[tick])
+        probability = -np.expm1(-self.r_recovery[tick])
         newly_susceptible = np.random.binomial(inf[tick + 1], probability).astype(inf.dtype)
         self.model.nodes.newly_susceptible[tick] += newly_susceptible
         inf[tick + 1] -= newly_susceptible
@@ -459,18 +459,18 @@ class RecoveredToSusceptible(Recovered):
     and moving them from R to S.  Used in SIRS model configurations.
     """
 
-    def __init__(self, model: Model, omega: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, r_waning: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the RecoveredToSusceptible component.
 
         Args:
             model (Model): The parent model instance.
-            omega (ValuesMap | None): Per-tick, per-node rate of waning immunity
+            r_waning (ValuesMap | None): Per-tick, per-node rate of waning immunity
                 (R → S).  Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
         super().__init__(model, validating)
 
-        self.omega = omega if omega is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
+        self.r_waning = r_waning if r_waning is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
 
         return
 
@@ -484,14 +484,14 @@ class RecoveredToSusceptible(Recovered):
     def step(self, tick: int) -> None:
         """Apply waning immunity (R → S) to recovered individuals.
 
-        Draws individuals with waned immunity from a binomial using `omega`,
+        Draws individuals with waned immunity from a binomial using `r_waning`,
         moving them from R to S and recording the flow in `nodes.newly_susceptible`.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
         rec = self.model.states.R
-        probability = -np.expm1(-self.omega[tick])
+        probability = -np.expm1(-self.r_waning[tick])
         newly_susceptible = np.random.binomial(rec[tick + 1], probability).astype(rec.dtype)
         self.model.nodes.newly_susceptible[tick] += newly_susceptible
         rec[tick + 1] -= newly_susceptible

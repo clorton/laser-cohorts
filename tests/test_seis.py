@@ -18,13 +18,13 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
 
     Constructs a 3×3 grid scenario, seeds 1% of each node's population as
     infectious (minimum 25, capped at node population),
-    and executes an SEIS model with beta=1/30, sigma=1/7, and gamma=1/180.
+    and executes an SEIS model with beta=1/30, r_progression=1/7, and r_recovery=1/180.
 
     Args:
         interactive (bool): If True, display a matplotlib plot of compartment
             trajectories.
         params (dict | None): Optional parameter overrides. Keys may include
-            ``"nticks"``, ``"beta"``, ``"sigma"``, and ``"gamma"``. Missing
+            ``"nticks"``, ``"beta"``, ``"r_progression"``, and ``"r_recovery"``. Missing
             keys use the default values.
 
     Returns:
@@ -37,20 +37,20 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
     p = PropertySet({
         "nticks": 5 * 365,
         "beta": 1.0 / 30.0,  # 1 new infection per existing infection every 30 ticks
-        "sigma": 1.0 / 7.0,  # 7 ticks of incubation (exposure)
-        "gamma": 1.0 / 180.0,  # 7 ticks to recovery
+        "r_progression": 1.0 / 7.0,  # 7 ticks of incubation (exposure)
+        "r_recovery": 1.0 / 180.0,  # 180 ticks to recovery
         **(params or {}),
     })
     model = Model(scenario, p)
 
     betas = ValuesMap.from_scalar(p.beta, p.nticks, len(scenario))
-    sigmas = ValuesMap.from_scalar(p.sigma, p.nticks, len(scenario))
-    gammas = ValuesMap.from_scalar(p.gamma, p.nticks, len(scenario))
+    r_progression = ValuesMap.from_scalar(p.r_progression, p.nticks, len(scenario))
+    r_recovery = ValuesMap.from_scalar(p.r_recovery, p.nticks, len(scenario))
 
     components = [
         SEIS.Susceptible(model),
-        SEIS.Exposed(model, sigma=sigmas),
-        SEIS.Infectious(model, gamma=gammas),
+        SEIS.Exposed(model, r_progression=r_progression),
+        SEIS.Infectious(model, r_recovery=r_recovery),
         SEIS.Transmission(model, beta=betas),
     ]
 
@@ -81,7 +81,7 @@ def test_seis() -> None:
     Seed is fixed so that no node experiences stochastic epidemic extinction.
     """
     laser.core.random.seed(0)
-    model = run_model(params={"nticks": 5 * 365, "beta": 1.0 / 30.0, "sigma": 1.0 / 7.0, "gamma": 1.0 / 180.0})
+    model = run_model(params={"nticks": 5 * 365, "beta": 1.0 / 30.0, "r_progression": 1.0 / 7.0, "r_recovery": 1.0 / 180.0})
     assert np.all(model.states.S[-1] > 0)
     assert np.all(model.states.S[-1] < model.states.I[-1])
     assert np.all(model.states.E[-1] > 0)

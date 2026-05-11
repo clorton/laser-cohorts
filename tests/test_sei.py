@@ -17,13 +17,13 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
 
     Constructs a 3×3 grid scenario, seeds 1% of each node's population as
     infectious (minimum 25, capped at node population),
-    and executes an SEI model (no recovery) with beta=1/30 and sigma=1/7.
+    and executes an SEI model (no recovery) with beta=1/30 and r_progression=1/7.
 
     Args:
         interactive (bool): If True, display a matplotlib plot of compartment
             trajectories.
         params (dict | None): Optional parameter overrides. Keys may include
-            ``"nticks"``, ``"beta"``, and ``"sigma"``. Missing keys use the
+            ``"nticks"``, ``"beta"``, and ``"r_progression"``. Missing keys use the
             default values.
 
     Returns:
@@ -36,17 +36,17 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
     p = PropertySet({
         "nticks": 5 * 365,
         "beta": 1.0 / 30.0,  # 1 new infection per existing infection every 30 ticks
-        "sigma": 1.0 / 7.0,  # 7 ticks of incubation (exposure)
+        "r_progression": 1.0 / 7.0,  # 7 ticks of incubation (exposure)
         **(params or {}),
     })
     model = Model(scenario, p)
 
     betas = ValuesMap.from_scalar(p.beta, p.nticks, len(scenario))  # ty: ignore unresolved-attribute
-    sigmas = ValuesMap.from_scalar(p.sigma, p.nticks, len(scenario))  # ty: ignore unresolved-attribute
+    r_progression = ValuesMap.from_scalar(p.r_progression, p.nticks, len(scenario))  # ty: ignore unresolved-attribute
 
     components = [
         SEI.Susceptible(model),
-        SEI.Exposed(model, sigma=sigmas),
+        SEI.Exposed(model, r_progression=r_progression),
         SEI.Infectious(model),
         SEI.Transmission(model, beta=betas),
     ]
@@ -74,7 +74,7 @@ def test_sei() -> None:
     5 years, then the entire initial population has accumulated in the infectious
     compartment.
     """
-    model = run_model(params={"nticks": 5 * 365, "beta": 1.0 / 30.0, "sigma": 1.0 / 7.0})
+    model = run_model(params={"nticks": 5 * 365, "beta": 1.0 / 30.0, "r_progression": 1.0 / 7.0})
     t0 = model.states[0]
     # use state_axis - 1 since taking the last tick reduces dimensionality by 1
     axis = model.states.state_axis - 1
