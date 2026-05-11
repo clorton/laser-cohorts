@@ -73,6 +73,17 @@
 - `components.py` `RecoveredToSusceptible.__init__`: renamed parameter `omega` → `r_waning`; updated `self.omega` → `self.r_waning` and all internal references
 - All 7 affected model integration test files (`test_sir.py`, `test_sis.py`, `test_sirs.py`, `test_sei.py`, `test_seir.py`, `test_seis.py`, `test_seirs.py`): updated component constructor keyword arguments, local variable names, `PropertySet` keys, and docstrings to match new parameter names
 
+### Changed (carry-forward unknown-state warning)
+- `model.py` `Model.components` setter: emits `UserWarning` via `warnings.warn` for each name in `carry_forward_states` that is not found in the model's registered states (previously silently skipped)
+- `tests/test_model.py` `test_carry_forward_unknown_state_name_emits_warning`: updated from "silently ignored" to assert one `UserWarning` is emitted containing the unknown name, and that valid states are still carried
+
+### Changed (Model centralised carry-forward)
+- `model.py` `Model.__init__`: added `carry_forward_states: Iterable[str] | None = None` parameter; stores as a `set` (or `None`); initialises `_carry_mask` to `slice(None)`
+- `model.py` `Model.components` setter: builds `_carry_mask` (boolean ndarray or `slice(None)`) from `carry_forward_states` using `StateArray.get_state_index` after the StateArray is allocated; unknown state names are silently skipped
+- `model.py` `Model.run`: carries forward `states[tick+1][mask] = states[tick][mask]` at the top of each tick before calling `start_step`
+- `components.py` `Susceptible.start_step`, `Exposed.start_step`, `Infectious.start_step`, `Recovered.start_step`: replaced per-state carry-forward with no-ops; docstrings updated
+- `tests/test_model.py`: 7 new tests covering default all-state carry-forward, multi-state carry-forward, selective list/tuple carry-forward, empty carry-forward, ordering (carry-forward before step), and unknown state name tolerance
+
 ### Added (ConstantPopBirths)
 - `src/laser/cohorts/vitaldynamics.py`: implemented `ConstantPopBirths` component; reads `nodes.non_disease_mortality[tick]` and adds the per-node death count back into `states.S[tick+1]`; `properties` declares `non_disease_mortality`; `states` declares `["S"]`
 - `laser.cohorts.ConstantPopBirths` exported from `__init__.py`

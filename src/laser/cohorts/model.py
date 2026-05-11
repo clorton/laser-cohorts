@@ -1,5 +1,8 @@
 """Core Model class for cohort-based compartmental disease simulation."""
 
+import warnings
+from collections.abc import Iterable
+
 import numpy as np
 
 from geopandas.geodataframe import GeoDataFrame
@@ -24,18 +27,29 @@ class Model:
             (nticks+1, n_states, n_nodes).
     """
 
-    def __init__(self, scenario: GeoDataFrame, params: Optional[PropertySet] = None) -> None:
+    def __init__(
+        self,
+        scenario: GeoDataFrame,
+        params: Optional[PropertySet] = None,
+        carry_forward_states: Iterable[str] | None = None,
+    ) -> None:
         """Initialize the Model.
 
         Args:
             scenario (GeoDataFrame): Geographic/demographic scenario; each row is a node.
             params (PropertySet | None): Named model parameters. Must contain `nticks`
                 before `components` is assigned.
+            carry_forward_states (Iterable[str] | None): Names of compartment states to
+                carry forward at the start of each tick.  ``None`` (default) carries
+                forward every state.  Pass an explicit iterable to restrict carry-forward
+                to a subset.
         """
         self.scenario = scenario
         self.params = params
         self.nodes = LaserFrame(len(scenario))
         self._components = []
+        self._carry_forward_states = set(carry_forward_states) if carry_forward_states is not None else None
+        self._carry_mask: np.ndarray | slice = slice(None)
         return
 
     @property
@@ -76,6 +90,21 @@ class Model:
         for name, count, dtype, default in properties:
             self.nodes.add_array_property(name, shape=(self.params.nticks, len(self.scenario)), dtype=dtype, default=default)
 
+        if self._carry_forward_states is not None:
+            all_names = self.states.state_names or ()
+            mask = np.zeros(len(all_names), dtype=bool)
+            for name in self._carry_forward_states:
+                idx = self.states.get_state_index(name)
+                if idx is not None:
+                    mask[idx] = True
+                else:
+                    warnings.warn(
+                        f"carry_forward_states: '{name}' is not a registered state and will be ignored.",
+                        UserWarning,
+                        stacklevel=3,
+                    )
+            self._carry_mask = mask
+
         for component in self.components:
             component.setup()
 
@@ -84,10 +113,20 @@ class Model:
     def run(self) -> None:
         """Execute the simulation for `params.nticks` time steps.
 
-        For each tick, calls `start_step`, `step`, and `end_step` on every
-        registered component in order.
+        At the start of each tick, carries forward the selected compartment
+        states from tick to tick+1, then calls `start_step`, `step`, and
+        `end_step` on every registered component in order.
         """
         for tick in range(self.params.nticks):
+            cur = self.states[tick]
+            nxt = self.states[tick + 1]
+            nxt[self._carry_mask] = cur[self._carry_mask]
+
+            # for component in self.components:
+            #     component.start_step(tick)
+            #     component.step(tick)
+            #     component.end_step(tick)
+
             for component in self.components:
                 component.start_step(tick)
             for component in self.components:

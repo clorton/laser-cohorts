@@ -40,14 +40,12 @@ class Susceptible:
         return
 
     def start_step(self, tick: int) -> None:
-        """Carry forward S counts from the previous tick.
+        """No-op start-of-step hook; carry-forward is handled by the Model.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        sus = self.model.states.S
-        sus[tick + 1] = sus[tick]
-        return
+        pass
 
     def step(self, tick: int) -> None:
         """No-op step hook for the S compartment.
@@ -113,14 +111,12 @@ class Exposed:
         return
 
     def start_step(self, tick: int) -> None:
-        """Carry forward E counts from the previous tick.
+        """No-op start-of-step hook; carry-forward is handled by the Model.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        exp = self.model.states.E
-        exp[tick + 1] = exp[tick]
-        return
+        pass
 
     def step(self, tick: int) -> None:
         """Apply disease progression to exposed individuals.
@@ -195,14 +191,12 @@ class Infectious:
         return
 
     def start_step(self, tick: int) -> None:
-        """Carry forward I counts from the previous tick.
+        """No-op start-of-step hook; carry-forward is handled by the Model.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        inf = self.model.states.I
-        inf[tick + 1] = inf[tick]
-        return
+        pass
 
     def step(self, tick: int) -> None:
         """No-op step hook for the I compartment.
@@ -407,14 +401,12 @@ class Recovered:
         return
 
     def start_step(self, tick: int) -> None:
-        """Carry forward R counts from the previous tick.
+        """No-op start-of-step hook; carry-forward is handled by the Model.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        rec = self.model.states.R
-        rec[tick + 1] = rec[tick]
-        return
+        pass
 
     def step(self, tick: int) -> None:
         """No-op step hook for the R compartment.
