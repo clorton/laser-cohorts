@@ -1,7 +1,7 @@
 """StateArray: a NumPy ndarray subclass with named compartment access."""
 
 import numpy as np
-from typing import Any
+from typing import Any, Type
 
 
 class StateArray(np.ndarray):

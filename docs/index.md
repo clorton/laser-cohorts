@@ -1,73 +1,123 @@
-# LASER documentation
+# laser.cohorts
 
-LASER (Light Agent Spatial modeling for ERadication) is a high-performance, stochastic agent-based simulation framework for modeling the spread of infectious diseases. It supports spatial structure, age demographics, and modular disease logic using Python-based components.
+`laser.cohorts` provides composable, cohort-based (compartmental/MPM) disease models built on the [LASER](https://github.com/laser-base) simulation framework.
 
-The LASER framework is designed to be flexible and is composed of modular components that can be used to create custom epidemiological models. For those who want to explore disease dynamics without the need to code from scratch, the framework includes epidemiological components that are designed model diseases with non-vector transmission dynamics. These modules can be used to create anything from simple compartmental models to more complex agent-based models with spatial dynamics. The framework is open-source, so for those who want to [contribute to code](contribute.md), contributions are welcome!
+A *cohort model* tracks counts of individuals in each epidemiological state rather than individual agents. Each node in a spatial scenario holds an independent set of compartments; transmission and progression are applied stochastically within each node per simulation tick.
+
+Eight standard model structures are available as ready-to-use presets — from the minimal two-compartment SI model through the four-compartment SEIRS model with waning immunity — and all can be assembled from the same library of composable components.
+
+---
 
 ## Installation
 
-LASER is distributed as a Python package. The **recommended install path for most users** is through the high-level `laser-generic` package, which includes the core engine and all epidemiological modeling tools.
-
----
-
-### ✅ Recommended for most users
-
-To install LASER, run:
-
-```
-uv pip install laser-cohorts
+```bash
+uv pip install laser.cohorts
 ```
 
-This installs:
-
-- `laser-cohorts`: modeling framework and components (e.g., SIR, SEIR, demography, mobility)
-- `laser-core`: the basic data structures used by `laser-cohorts`
-
-Once installed, you can start using LASER (importing components and composing a model) with:
-
-```python
-from laser.generic.model import Model
-from laser.generic.models.components import Susceptible
-etc.
-```
-
----
-
-### 🛠️ For engine developers
-
-If you are developing or modifying the model code, you can install the low-level engine directly:
-
-```
-uv pip install laser-core
-```
-
-This is **not required** for modelers using the LASER framework via `laser-generic`.
-
----
-
-### Verify the install
-
-Check your install with:
+For local development from source:
 
 ```bash
-python -c "import laser.generic; print('LASER is ready.')"
+git clone https://github.com/InstituteforDiseaseModeling/laser-cohorts.git
+cd laser-cohorts
+uv venv --python 3.13 .venv
+source .venv/bin/activate  # macOS / Linux
+uv pip install -e ".[dev]"
 ```
 
 ---
 
-### Why `uv`?
+## Quick start
 
-[`uv`](https://docs.astral.sh/uv/getting-started/installation) is a modern Python package manager that is:
+The example below builds and runs a 9-node SIR model for five years, then reads the final compartment counts.
 
-- Much faster than pip
-- Fully compatible with `pip install`
-- Drop-in replacement for Python environments
+```python
+from laser.core import PropertySet
+from laser.core.utils import grid
+from laser.generic.utils import ValuesMap
+from laser.cohorts import Model
+import laser.cohorts.SIR as SIR
 
-To install `uv`:
+# 3×3 spatial grid; seed 10 infectious individuals per node
+scenario = grid(M=3, N=3)
+scenario.S -= 10
+scenario.I += 10
 
+params = PropertySet({
+    "nticks": 5 * 365,
+    "beta": 1.5 / 7.0,   # ~1.5 new infections per infectious individual per week
+    "gamma": 1.0 / 7.0,  # average 7-day infectious period
+})
+
+model = Model(scenario, params)
+
+betas = ValuesMap.from_scalar(params.beta, params.nticks, len(scenario))
+gammas = ValuesMap.from_scalar(params.gamma, params.nticks, len(scenario))
+
+model.components = [
+    SIR.Susceptible(model),
+    SIR.Infectious(model, gamma=gammas),
+    SIR.Recovered(model),
+    SIR.Transmission(model, beta=betas),
+]
+
+model.run()
+
+# Access compartment time-series by name
+print(model.states.S[-1])  # final susceptible counts per node
+print(model.states.I[-1])  # final infectious counts per node
+print(model.states.R[-1])  # final recovered counts per node
 ```
-pip install uv
+
+### Model presets
+
+Each preset is a thin module that re-exports the correct combination of components under the conventional names `Susceptible`, `Exposed` (where applicable), `Infectious`, `Recovered` (where applicable), and `Transmission`.
+
+| Preset | Module | Compartments |
+|--------|--------|--------------|
+| SI | `laser.cohorts.SI` | S, I |
+| SIR | `laser.cohorts.SIR` | S, I, R |
+| SIS | `laser.cohorts.SIS` | S, I (recovery → S) |
+| SIRS | `laser.cohorts.SIRS` | S, I, R (waning → S) |
+| SEI | `laser.cohorts.SEI` | S, E, I |
+| SEIR | `laser.cohorts.SEIR` | S, E, I, R |
+| SEIS | `laser.cohorts.SEIS` | S, E, I (recovery → S) |
+| SEIRS | `laser.cohorts.SEIRS` | S, E, I, R (waning → S) |
+
+### Composing custom models
+
+Models are assembled from individual component classes, each responsible for one compartment or transition rule. Combine any subset of the primitives below:
+
+- **Compartment components** — `Susceptible`, `Exposed`, `Infectious`, `Recovered`
+- **Transition components** — `InfectiousToRecovered`, `InfectiousToSusceptible`, `RecoveredToSusceptible`
+- **Transmission components** — `TransmissionSI` (S → I), `TransmissionSE` (S → E)
+
+```python
+from laser.cohorts import (
+    Model, Susceptible, Exposed,
+    InfectiousToRecovered, Recovered, RecoveredToSusceptible,
+    TransmissionSE,
+)
+
+# SEIRS model assembled from primitives
+model.components = [
+    Susceptible(model),
+    Exposed(model, sigma=sigmas),
+    InfectiousToRecovered(model, gamma=gammas),
+    Recovered(model),
+    RecoveredToSusceptible(model, gamma=waning),
+    TransmissionSE(model, beta=betas),
+]
 ```
+
+---
+
+## Key concepts
+
+**`Model`** — orchestrates the scenario, component list, and tick loop. Assigning `model.components` allocates the state array and node property arrays and calls each component's `setup()`. Calling `model.run()` then steps through `start_step → step → end_step` for every tick.
+
+**`StateArray`** — a `numpy.ndarray` subclass that exposes named compartment slices as attributes (`states.S`, `states.I`, `states.R`, …). Full NumPy indexing still works (`states[0]`, `states[-1]`, etc.).
+
+**`ValuesMap`** — a per-tick, per-node parameter map from `laser.generic`. Use `ValuesMap.from_scalar(value, nticks, n_nodes)` for homogeneous, time-constant parameters.
 
 ---
 
@@ -75,60 +125,15 @@ pip install uv
 
 <div class="grid cards" markdown>
 
--   :material-laptop:{ .lg .middle } __Get started__
+-   :material-api:{ .lg .middle } __API reference__
 
     ---
 
-    Create and run simulations.
+    Full details on all classes, components, and functions.
 
-    [:octicons-arrow-right-24: Get started modeling](get-started/index.md)
-
--   :material-api:{ .lg .middle } __Reference__
-
-    ---
-
-    Full details on all classes and functions.
-
-    [:octicons-arrow-right-24: API reference](reference/laser/generic/index.md)
-
--   :simple-jupyter:{ .lg .middle } __Tutorials__
-
-    ---
-
-    An interactive tour of key features.
-
-    [:octicons-arrow-right-24: Tutorials](tutorials/index.md)
-
--   :material-new-box:{ .lg .middle } __What's new__
-
-    ---
-
-    See what's in the latest releases.
-
-    [:octicons-arrow-right-24: What's new](whatsnew.md)
-
+    [:octicons-arrow-right-24: API reference](reference/laser/cohorts/index.md)
 
 </div>
-
-<!-- [Don't write out personas or split tasks into persona groups; the docs should be task-oriented, so users can determine what they need by what tasks they're trying to accomplish. Understanding personas is an internal tool so we can appropriately identify tasks & necessary info]
-
-
-As a reminder, the following tasks were listed in the original intro:
-
-- Run powerful simulations of disease dynamics without building models from scratch. [Running sims]
-- Leverage built-in examples for SIR, vital dynamics, spatial modeling, and calibration. [Code snippets in demographics, calibration; how-to in running sims, adding spatial dynamics, and tutorials]
-- Gain insights into how spatial spread, birth/death, or vaccination influence transmission. [Tutorials]
-- Run calibrations against real-world data to optimize model parameters. [Calibration]
-- Compose custom models by integrating or modifying modular components, such as transmission, immunity, and migration. [getting started/running sims/custom models]
-- Add epidemiologically relevant features like contact tracing or waning immunity. [Running sims]
-- Run calibrations against real-world data to optimize model parameters. [calibration]
-- Extend the LASER framework with new core functionality: algorithms, optimization backends, spatial logic. [development]
-- Contribute performance-critical modules using Numba, OpenMP, or C. [development]
-
-SO: the docs are going to need to have instructions and help on how to do all of these. I've added notes on where the info should go. As mentioned, don't split these up into persona buckets, just make sure the tasks are explained in order of start - finish (building up complexity).
-
-We can change what the buttons link to, these are sort of placeholders right now.-->
-
 
 {%
     include-markdown "../AUTHORS.md"

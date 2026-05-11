@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added (documentation)
+- `docs/index.md`: rewrote from `laser.generic` boilerplate to `laser.cohorts`-specific content — description, installation, SIR quick-start example, model preset table, key-concepts summary, and API reference link
+- `mkdocs.yml`: updated `site_name`, `site_url`, `repo_name`, `repo_url` to `laser.cohorts`; simplified `nav` to only existing pages (`index.md` and `reference/`)
+- `docs/customization/gen-files.py`: corrected SUMMARY.md generation to reference `laser.cohorts` instead of `laser.generic`; removed `laser.core` collection and page generation (cross-reference resolution via `preload_modules` in `mkdocs.yml` is retained)
+
 ### Added
 - Google-style docstrings to all public and private methods, classes, and modules in `src/laser/cohorts/`: `__init__.py`, `model.py`, `components.py`, `statearray.py`, `utils.py`
 - Module-level docstring to `src/laser/cohorts/utils.py`
