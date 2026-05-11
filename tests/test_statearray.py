@@ -9,7 +9,7 @@ from laser.cohorts import StateArray
 class TestStateArray:
     """Test cases for StateArray wrapper class."""
 
-    def test_basic_creation(self):
+    def test_basic_creation(self) -> None:
         """Given a zeroed (3, 10) array and names ["S", "I", "R"], when a StateArray is
         constructed with state_axis=0, then the shape is (3, 10) and state_names equals
         the expected tuple.
@@ -26,7 +26,7 @@ class TestStateArray:
             "R",
         )
 
-    def test_attribute_access(self):
+    def test_attribute_access(self) -> None:
         """Given an SEIR StateArray, when each state name is accessed as an attribute,
         then the returned array equals the corresponding row retrieved by integer index.
         """
@@ -40,7 +40,7 @@ class TestStateArray:
         assert np.array_equal(states.I, states[2])
         assert np.array_equal(states.R, states[3])
 
-    def test_attribute_assignment(self):
+    def test_attribute_assignment(self) -> None:
         """Given an SIR StateArray initialized to zeros, when scalar values are
         broadcast-assigned via named attributes, then each corresponding row contains
         only the assigned value.
@@ -58,7 +58,7 @@ class TestStateArray:
         assert np.all(states[1] == 50)
         assert np.all(states[2] == 100)
 
-    def test_slicing_operations(self):
+    def test_slicing_operations(self) -> None:
         """Given an SIR StateArray backed by random data, when specific patch indices
         are selected via named-attribute slicing, then the result matches the equivalent
         integer-indexed row slice.
@@ -77,7 +77,7 @@ class TestStateArray:
         assert np.array_equal(s_subset, states[0, patch_indices])
         assert np.array_equal(i_subset, states[1, patch_indices])
 
-    def test_numpy_operations(self):
+    def test_numpy_operations(self) -> None:
         """Given an SIR StateArray where every element equals 100, when the array is
         summed along axis 0, then total population is 300 per patch and the I prevalence
         equals 1/3.
@@ -94,7 +94,7 @@ class TestStateArray:
         prevalence = states.I / total_pop
         assert np.all(prevalence == 1 / 3)  # 100 / 300
 
-    def test_backward_compatibility(self):
+    def test_backward_compatibility(self) -> None:
         """Given an SEIR StateArray backed by random data, when the same element is
         accessed by both integer index and named attribute, then both return identical
         arrays.
@@ -109,7 +109,7 @@ class TestStateArray:
         assert np.array_equal(states[2], states.I)
         assert np.array_equal(states[3], states.R)
 
-    def test_invalid_attribute_access(self):
+    def test_invalid_attribute_access(self) -> None:
         """Given an SIR StateArray, when an attribute name not registered as a state
         is read or written, then AttributeError is raised.
         """
@@ -123,7 +123,7 @@ class TestStateArray:
         with pytest.raises(AttributeError):
             states.Y = 100  # Y is not a valid state name
 
-    def test_different_state_configurations(self):
+    def test_different_state_configurations(self) -> None:
         """Given SIR and SEIR StateArrays constructed with different name lists, when
         each is interrogated via hasattr for its declared and undeclared states, then
         only the states registered at construction time are present.
@@ -146,7 +146,7 @@ class TestStateArray:
         assert hasattr(seir_states, "I")
         assert hasattr(seir_states, "R")
 
-    def test_get_state_index(self):
+    def test_get_state_index(self) -> None:
         """Given an SEIR StateArray, when get_state_index is called for each registered
         name and for an unknown name, then it returns the correct zero-based integer
         index or None respectively.
@@ -165,7 +165,7 @@ class TestStateArray:
     # Consider re-enabling if __getitem__ can verify that the resulting
     # dimensionality is appropriate to the original StateArray
     @pytest.mark.skip(reason="StateArray slicing now returns a plain ndarray, so finalize is not relevant")
-    def test_array_finalize(self):
+    def test_array_finalize(self) -> None:
         """Given an SIR StateArray, when a column slice is taken, then the result is a
         StateArray preserving the original state_names.
 
@@ -181,7 +181,7 @@ class TestStateArray:
         assert isinstance(subset, StateArray)
         assert subset.state_names == ["S", "I", "R"]
 
-    def test_realistic_epidemiological_operations(self):
+    def test_realistic_epidemiological_operations(self) -> None:
         """Given a zeroed SEIR StateArray, when an infection event moves individuals
         from S to E via in-place arithmetic on named attributes, then total population
         is conserved and I prevalence is non-negative everywhere.
@@ -314,7 +314,7 @@ def tsap_data() -> np.ndarray:
 class TestConstruction:
     """Construction-time guards for the explicit input_array path."""
 
-    def test_valid_construction(self, zero_data):
+    def test_valid_construction(self, zero_data: np.ndarray) -> None:
         """Given a valid 2D array and a matching names list, construction should
         succeed with the correct shape and name registry.
 
@@ -331,7 +331,7 @@ class TestConstruction:
 
         return
 
-    def test_rejects_names_shorter_than_states_dimension(self, zero_data):
+    def test_rejects_names_shorter_than_states_dimension(self, zero_data: np.ndarray) -> None:
         """Given a names list shorter than the states dimension of the array,
         construction should raise ValueError.
 
@@ -344,7 +344,7 @@ class TestConstruction:
 
         return
 
-    def test_rejects_names_longer_than_states_dimension(self, zero_data):
+    def test_rejects_names_longer_than_states_dimension(self, zero_data: np.ndarray) -> None:
         """Given a names list longer than the states dimension of the array,
         construction should raise ValueError.
 
@@ -357,7 +357,7 @@ class TestConstruction:
 
         return
 
-    def test_rejects_invalid_python_identifier(self, zero_data):
+    def test_rejects_invalid_python_identifier(self, zero_data: np.ndarray) -> None:
         """Given a name that is not a valid Python identifier, construction should
         raise ValueError.
 
@@ -374,7 +374,7 @@ class TestConstruction:
 
         return
 
-    def test_rejects_ndarray_attribute_collision(self, zero_data):
+    def test_rejects_ndarray_attribute_collision(self, zero_data: np.ndarray) -> None:
         """Given a name that shadows an existing ndarray attribute such as 'shape',
         construction should raise ValueError.
 
@@ -405,7 +405,7 @@ class TestAllocation:
     identically to the explicit input_array path.
     """
 
-    def test_allocates_default_dtype_and_value(self):
+    def test_allocates_default_dtype_and_value(self) -> None:
         """Given shape=(NUM_STATES, NUM_PATCHES) and no other overrides, construction
         should allocate an int32 array filled with zeros.
 
@@ -422,7 +422,7 @@ class TestAllocation:
 
         return
 
-    def test_allocates_with_custom_dtype(self):
+    def test_allocates_with_custom_dtype(self) -> None:
         """Given dtype=float64, the allocated array should have float64 elements.
 
         Failure implies the dtype argument is ignored during allocation, forcing
@@ -437,7 +437,7 @@ class TestAllocation:
 
         return
 
-    def test_allocates_with_custom_default(self):
+    def test_allocates_with_custom_default(self) -> None:
         """Given default=42, every element of the allocated array should be 42.
 
         Failure implies the default fill value is ignored; callers relying on a
@@ -451,7 +451,7 @@ class TestAllocation:
 
         return
 
-    def test_allocates_with_custom_dtype_and_default(self):
+    def test_allocates_with_custom_dtype_and_default(self) -> None:
         """Given dtype=float32 and default=-1.0, the allocated array should be
         float32 filled with -1.0 throughout.
 
@@ -467,7 +467,7 @@ class TestAllocation:
 
         return
 
-    def test_rejects_missing_dims_and_input_array(self):
+    def test_rejects_missing_dims_and_input_array(self) -> None:
         """Given neither input_array nor dims, construction should raise ValueError.
 
         Failure implies the guard is absent; the class would have no information
@@ -479,7 +479,7 @@ class TestAllocation:
 
         return
 
-    def test_name_registry_populated_on_allocation(self):
+    def test_name_registry_populated_on_allocation(self) -> None:
         """Given a successful allocation, states and _state_to_view should be
         populated identically to the explicit input_array construction path.
 
@@ -495,7 +495,7 @@ class TestAllocation:
 
         return
 
-    def test_named_access_works_on_allocated_array(self):
+    def test_named_access_works_on_allocated_array(self) -> None:
         """Given an allocated array filled with a known default, named attribute
         access should return a plain ndarray row containing that default value.
 
@@ -523,7 +523,7 @@ class TestAllocation:
 class TestNamedRead:
     """Named attribute read access: correctness, aliasing, and error behaviour."""
 
-    def test_named_attribute_returns_correct_row(self, sample_data):
+    def test_named_attribute_returns_correct_row(self, sample_data: np.ndarray) -> None:
         """Given an array where row i is filled with i+1, reading the named attribute
         for each state should return the corresponding row values.
 
@@ -540,7 +540,7 @@ class TestNamedRead:
 
         return
 
-    def test_named_attribute_returns_plain_ndarray(self, sample_data):
+    def test_named_attribute_returns_plain_ndarray(self, sample_data: np.ndarray) -> None:
         """Given a constructed StateArray, accessing any state name should return
         a plain np.ndarray, not a StateArray instance.
 
@@ -559,7 +559,7 @@ class TestNamedRead:
 
         return
 
-    def test_named_attribute_read_is_a_view(self, zero_data):
+    def test_named_attribute_read_is_a_view(self, zero_data: np.ndarray) -> None:
         """Given a constructed array, the 1D array returned by a named attribute should
         share memory with the backing store (i.e. be a view, not a copy).
 
@@ -579,7 +579,7 @@ class TestNamedRead:
 
         return
 
-    def test_unknown_attribute_raises_attribute_error(self, zero_data):
+    def test_unknown_attribute_raises_attribute_error(self, zero_data: np.ndarray) -> None:
         """Given a constructed array, accessing an attribute not registered as a state
         name should raise AttributeError.
 
@@ -604,7 +604,7 @@ class TestNamedRead:
 class TestNamedWrite:
     """Named attribute write access: scalars, arrays, and row isolation."""
 
-    def test_named_write_scalar_fills_row(self, zero_data):
+    def test_named_write_scalar_fills_row(self, zero_data: np.ndarray) -> None:
         """Given an array initialised to zeros, assigning a scalar to a named attribute
         should broadcast to fill every element of that row.
 
@@ -626,7 +626,7 @@ class TestNamedWrite:
 
         return
 
-    def test_named_write_array_updates_row(self, zero_data):
+    def test_named_write_array_updates_row(self, zero_data: np.ndarray) -> None:
         """Given a constructed array, assigning a 1D array to a named attribute should
         replace that row's contents with the provided values.
 
@@ -644,7 +644,7 @@ class TestNamedWrite:
 
         return
 
-    def test_named_write_does_not_affect_other_rows(self, zero_data):
+    def test_named_write_does_not_affect_other_rows(self, zero_data: np.ndarray) -> None:
         """Given a constructed array, writing to one named row should leave all other
         rows untouched.
 
@@ -673,7 +673,7 @@ class TestNamedWrite:
 class TestIndexing:
     """Direct __getitem__ / __setitem__ access by integer row and (row, col) tuple."""
 
-    def test_getitem_integer_row(self, sample_data):
+    def test_getitem_integer_row(self, sample_data: np.ndarray) -> None:
         """Given distinct per-row values, indexing by integer row should return the
         correct row.
 
@@ -690,7 +690,7 @@ class TestIndexing:
 
         return
 
-    def test_getitem_tuple_returns_scalar(self, sample_data):
+    def test_getitem_tuple_returns_scalar(self, sample_data: np.ndarray) -> None:
         """Given distinct per-row values, 2D tuple indexing should return the correct
         scalar element.
 
@@ -708,7 +708,7 @@ class TestIndexing:
 
         return
 
-    def test_setitem_integer_row(self, zero_data):
+    def test_setitem_integer_row(self, zero_data: np.ndarray) -> None:
         """Given a zeroed array, assigning a full row via integer index should update
         the underlying data.
 
@@ -726,7 +726,7 @@ class TestIndexing:
 
         return
 
-    def test_setitem_tuple_updates_single_element(self, zero_data):
+    def test_setitem_tuple_updates_single_element(self, zero_data: np.ndarray) -> None:
         """Given a zeroed array, assigning a scalar via 2D tuple index should update
         only that element, leaving all neighbours unchanged.
 
@@ -762,7 +762,7 @@ class TestSlice:
     not available on the result.
     """
 
-    def test_column_slice_returns_plain_ndarray(self, sample_data):
+    def test_column_slice_returns_plain_ndarray(self, sample_data: np.ndarray) -> None:
         """Given a StateArray, slicing a column range should return a plain
         np.ndarray, not a StateArray.
 
@@ -794,7 +794,7 @@ class TestSlice:
 class TestProtocol:
     """shape attribute and __array__ protocol."""
 
-    def test_shape_reports_correct_dimensions(self, zero_data):
+    def test_shape_reports_correct_dimensions(self, zero_data: np.ndarray) -> None:
         """Given a constructed array, the shape attribute should report the underlying
         data's dimensions.
 
@@ -809,7 +809,7 @@ class TestProtocol:
 
         return
 
-    def test_asarray_returns_plain_ndarray_with_correct_data(self, sample_data):
+    def test_asarray_returns_plain_ndarray_with_correct_data(self, sample_data: np.ndarray) -> None:
         """Given a constructed array, np.asarray() should return a plain ndarray with
         data identical to the source.
 
@@ -828,7 +828,7 @@ class TestProtocol:
 
         return
 
-    def test_asarray_respects_dtype_argument(self, sample_data):
+    def test_asarray_respects_dtype_argument(self, sample_data: np.ndarray) -> None:
         """Given a constructed int64 array, np.asarray(arr, dtype=float64) should return
         a float64 ndarray with the same values.
 
@@ -862,7 +862,7 @@ class TestNdarrayAttributes:
     used intrinsic attributes are unaffected.
     """
 
-    def test_dtype_reflects_input(self, zero_data):
+    def test_dtype_reflects_input(self, zero_data: np.ndarray) -> None:
         """Given a StateArray constructed from an int64 array, dtype should be int64.
 
         Failure implies dtype is being masked or overridden by the custom __getattr__,
@@ -876,7 +876,7 @@ class TestNdarrayAttributes:
 
         return
 
-    def test_ndim_is_two(self, zero_data):
+    def test_ndim_is_two(self, zero_data: np.ndarray) -> None:
         """Given a StateArray wrapping a 2D array, ndim should be 2.
 
         Failure implies the dimensionality property is being intercepted, which would
@@ -890,7 +890,7 @@ class TestNdarrayAttributes:
 
         return
 
-    def test_size_is_total_element_count(self, zero_data):
+    def test_size_is_total_element_count(self, zero_data: np.ndarray) -> None:
         """Given a StateArray of shape (NUM_STATES, NUM_PATCHES), size should equal
         NUM_STATES * NUM_PATCHES.
 
@@ -905,7 +905,7 @@ class TestNdarrayAttributes:
 
         return
 
-    def test_itemsize_reflects_dtype(self, zero_data):
+    def test_itemsize_reflects_dtype(self, zero_data: np.ndarray) -> None:
         """Given an int64 StateArray, itemsize should be 8 (bytes per element).
 
         Failure implies per-element byte size is inaccessible, breaking low-level
@@ -919,7 +919,7 @@ class TestNdarrayAttributes:
 
         return
 
-    def test_nbytes_is_size_times_itemsize(self, zero_data):
+    def test_nbytes_is_size_times_itemsize(self, zero_data: np.ndarray) -> None:
         """Given a StateArray, nbytes should equal size * itemsize.
 
         Failure implies total buffer size is inaccessible, breaking memory-budget
@@ -933,7 +933,7 @@ class TestNdarrayAttributes:
 
         return
 
-    def test_strides_are_c_contiguous(self, zero_data):
+    def test_strides_are_c_contiguous(self, zero_data: np.ndarray) -> None:
         """Given a C-contiguous int64 StateArray with states along axis 0, strides
         should be (NUM_PATCHES * itemsize, itemsize).
 
@@ -950,7 +950,7 @@ class TestNdarrayAttributes:
 
         return
 
-    def test_transpose_swaps_axes(self, zero_data):
+    def test_transpose_swaps_axes(self, zero_data: np.ndarray) -> None:
         """Given a (NUM_STATES, NUM_PATCHES) StateArray, the .T attribute should
         return an array with shape (NUM_PATCHES, NUM_STATES).
 
@@ -965,7 +965,7 @@ class TestNdarrayAttributes:
 
         return
 
-    def test_flags_reports_c_contiguous(self, zero_data):
+    def test_flags_reports_c_contiguous(self, zero_data: np.ndarray) -> None:
         """Given a StateArray constructed from a standard C-contiguous array, the
         C_CONTIGUOUS flag should be True.
 
@@ -996,7 +996,7 @@ class TestTicksStatesPatchesLayout:
 
     # --- construction -------------------------------------------------------
 
-    def test_construction_from_input_array(self, tsp_data):
+    def test_construction_from_input_array(self, tsp_data: np.ndarray) -> None:
         """Given a (NUM_TICKS, NUM_STATES, NUM_PATCHES) array and states_dim=1,
         construction should succeed with the correct shape and name registry.
 
@@ -1012,7 +1012,7 @@ class TestTicksStatesPatchesLayout:
 
         return
 
-    def test_construction_from_dims(self):
+    def test_construction_from_dims(self) -> None:
         """Given shape=(NUM_TICKS, NUM_STATES, NUM_PATCHES) and states_dim=1,
         construction should allocate a zeroed int32 array of the correct shape.
 
@@ -1028,7 +1028,7 @@ class TestTicksStatesPatchesLayout:
 
         return
 
-    def test_rejects_mismatched_states_count(self, tsp_data):
+    def test_rejects_mismatched_states_count(self, tsp_data: np.ndarray) -> None:
         """Given states_dim=1 and fewer names than elements on axis 1, construction
         should raise ValueError.
 
@@ -1043,7 +1043,7 @@ class TestTicksStatesPatchesLayout:
 
     # --- named read ---------------------------------------------------------
 
-    def test_named_access_returns_correct_2d_slice(self, tsp_data):
+    def test_named_access_returns_correct_2d_slice(self, tsp_data: np.ndarray) -> None:
         """Given arr[:, i, :] = i + 1 for each state i, named access should return
         a 2D slice of shape (NUM_TICKS, NUM_PATCHES) with the correct fill value.
 
@@ -1061,7 +1061,7 @@ class TestTicksStatesPatchesLayout:
 
         return
 
-    def test_named_access_returns_plain_ndarray(self, tsp_data):
+    def test_named_access_returns_plain_ndarray(self, tsp_data: np.ndarray) -> None:
         """Given a ticks × states × patches array, named access should return a
         plain np.ndarray, not a StateArray.
 
@@ -1080,7 +1080,7 @@ class TestTicksStatesPatchesLayout:
 
         return
 
-    def test_named_access_is_a_view(self):
+    def test_named_access_is_a_view(self) -> None:
         """Given a ticks × states × patches array, the 2D slice returned by named
         access should share memory with the backing store.
 
@@ -1101,7 +1101,7 @@ class TestTicksStatesPatchesLayout:
 
         return
 
-    def test_unknown_attribute_raises_attribute_error(self):
+    def test_unknown_attribute_raises_attribute_error(self) -> None:
         """Given a ticks × states × patches array, accessing an unregistered
         attribute should raise AttributeError.
 
@@ -1119,7 +1119,7 @@ class TestTicksStatesPatchesLayout:
 
     # --- named write --------------------------------------------------------
 
-    def test_named_write_scalar_fills_state_slice(self):
+    def test_named_write_scalar_fills_state_slice(self) -> None:
         """Given a zeroed array, assigning a scalar to a named attribute should
         broadcast to fill the entire ticks × patches slice for that state.
 
@@ -1136,7 +1136,7 @@ class TestTicksStatesPatchesLayout:
 
         return
 
-    def test_named_write_2d_array_updates_state_slice(self):
+    def test_named_write_2d_array_updates_state_slice(self) -> None:
         """Given a zeroed array, assigning a 2D array to a named attribute should
         replace the entire ticks × patches slice for that state.
 
@@ -1155,7 +1155,7 @@ class TestTicksStatesPatchesLayout:
 
         return
 
-    def test_named_write_does_not_affect_other_states(self):
+    def test_named_write_does_not_affect_other_states(self) -> None:
         """Given a zeroed array, writing to one named state should leave all other
         states untouched.
 
@@ -1177,7 +1177,7 @@ class TestTicksStatesPatchesLayout:
 
     # --- shape --------------------------------------------------------------
 
-    def test_shape_is_ticks_states_patches(self):
+    def test_shape_is_ticks_states_patches(self) -> None:
         """Given shape=(NUM_TICKS, NUM_STATES, NUM_PATCHES), arr.shape should equal
         that tuple.
 
@@ -1191,7 +1191,7 @@ class TestTicksStatesPatchesLayout:
 
         return
 
-    def test_ndim_is_three(self):
+    def test_ndim_is_three(self) -> None:
         """Given a 3-D layout, ndim should be 3.
 
         Failure implies the custom __getattr__ intercepts the ndim property, or the
@@ -1217,7 +1217,7 @@ class TestStatesAgesPatchesLayout:
     Named access returns a 2D slice of shape (NUM_AGES, NUM_PATCHES).
     """
 
-    def test_construction_from_input_array(self, sap_data):
+    def test_construction_from_input_array(self, sap_data: np.ndarray) -> None:
         """Given a (NUM_STATES, NUM_AGES, NUM_PATCHES) array and states_dim=0,
         construction should succeed with the correct shape and name registry.
 
@@ -1232,7 +1232,7 @@ class TestStatesAgesPatchesLayout:
 
         return
 
-    def test_construction_from_dims(self):
+    def test_construction_from_dims(self) -> None:
         """Given shape=(NUM_STATES, NUM_AGES, NUM_PATCHES) and states_dim=0,
         construction should allocate a zeroed int32 array of the correct shape.
 
@@ -1248,7 +1248,7 @@ class TestStatesAgesPatchesLayout:
 
         return
 
-    def test_named_access_returns_correct_2d_slice(self, sap_data):
+    def test_named_access_returns_correct_2d_slice(self, sap_data: np.ndarray) -> None:
         """Given arr[i, :, :] = i + 1, named access should return a 2D slice of
         shape (NUM_AGES, NUM_PATCHES) containing the correct values.
 
@@ -1265,7 +1265,7 @@ class TestStatesAgesPatchesLayout:
 
         return
 
-    def test_named_write_scalar_fills_state_slice(self):
+    def test_named_write_scalar_fills_state_slice(self) -> None:
         """Given a zeroed states × ages × patches array, assigning a scalar to a
         named attribute should fill the entire ages × patches slice for that state.
 
@@ -1297,7 +1297,7 @@ class TestTicksStatesAgesPatchesLayout:
     Named access returns a 3D slice of shape (NUM_TICKS, NUM_AGES, NUM_PATCHES).
     """
 
-    def test_construction_from_input_array(self, tsap_data):
+    def test_construction_from_input_array(self, tsap_data: np.ndarray) -> None:
         """Given a (NUM_TICKS, NUM_STATES, NUM_AGES, NUM_PATCHES) array and
         states_dim=1, construction should succeed with the correct shape and registry.
 
@@ -1312,7 +1312,7 @@ class TestTicksStatesAgesPatchesLayout:
 
         return
 
-    def test_construction_from_dims(self):
+    def test_construction_from_dims(self) -> None:
         """Given shape=(NUM_TICKS, NUM_STATES, NUM_AGES, NUM_PATCHES) and states_dim=1,
         construction should allocate a zeroed int32 array of the correct shape.
 
@@ -1328,7 +1328,7 @@ class TestTicksStatesAgesPatchesLayout:
 
         return
 
-    def test_named_access_returns_correct_3d_slice(self, tsap_data):
+    def test_named_access_returns_correct_3d_slice(self, tsap_data: np.ndarray) -> None:
         """Given arr[:, i, :, :] = i + 1, named access should return a 3D slice of
         shape (NUM_TICKS, NUM_AGES, NUM_PATCHES) with the correct values.
 
@@ -1347,7 +1347,7 @@ class TestTicksStatesAgesPatchesLayout:
 
         return
 
-    def test_named_write_scalar_fills_state_slice(self):
+    def test_named_write_scalar_fills_state_slice(self) -> None:
         """Given a zeroed ticks × states × ages × patches array, assigning a scalar
         to a named attribute should fill the entire ticks × ages × patches slice.
 
@@ -1379,10 +1379,10 @@ class TestConstructionPaths:
     """StateArray construction via explicit constructor, np.asarray with dtype, and view casting."""
 
     # Well tested in all the cases above.
-    # def test_explicit_constructor(self):
+    # def test_explicit_constructor(self) -> None:
     #     return
 
-    def test_view_casting(self, sample_data):
+    def test_view_casting(self, sample_data: np.ndarray) -> None:
         """Given a plain ndarray, when viewed as StateArray via .view(StateArray), then
         the result is a StateArray instance but state_names, _state_axis, and
         get_state_index all return None because the metadata cannot be reconstructed
@@ -1404,7 +1404,7 @@ class TestConstructionPaths:
 
         return
 
-    def test_new_from_template(self):
+    def test_new_from_template(self) -> None:
         """Given a StateArray, when an integer-indexed slice (sa[1:]) is taken, then
         the result is a plain ndarray rather than a StateArray because __getitem__
         delegates directly to the underlying array, intentionally dropping the subclass.
@@ -1424,7 +1424,7 @@ class TestConstructionPaths:
 
         return
 
-    def test_new_from_dtype(self, sample_data):
+    def test_new_from_dtype(self, sample_data: np.ndarray) -> None:
         """StateArray.astype(np.float64) preserves subclass metadata."""
         # given
         state_arr = StateArray(NAMES, 0, source_array=sample_data)
@@ -1441,7 +1441,7 @@ class TestConstructionPaths:
 
         return
 
-    def test_from_ufunc(self):
+    def test_from_ufunc(self) -> None:
         """Given a populated StateArray, when divided element-wise by its row sums via
         a NumPy ufunc, then the result is a StateArray preserving state_names,
         state_axis, and the full _state_to_view registry.

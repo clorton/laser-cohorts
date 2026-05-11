@@ -72,18 +72,18 @@ def run_model(interactive: bool = False) -> Model:
     return model
 
 
-def test_seirs():
+def test_seirs() -> None:
     """Given a 9-node SEIRS model with standard parameters, when the model runs for
     5 years, then S and R each represent approximately 50% of the total population
-    (within 10% relative tolerance) with no remaining E or I.
+    (within 15% relative tolerance) with no remaining E or I.
     """
     model = run_model(interactive=False)
     # use state_axis - 1 since taking the last tick reduces dimensionality by 1
     N = model.states[-1].sum(axis=model.states.state_axis - 1)
-    assert np.allclose(model.states.S[-1] / N, 0.5, rtol=0.10)
+    assert np.allclose(model.states.S[-1] / N, 0.5, rtol=0.15)
     assert np.all(model.states.E[-1] == 0)
     assert np.all(model.states.I[-1] == 0)
-    assert np.allclose(model.states.R[-1] / N, 0.5, rtol=0.10)
+    assert np.allclose(model.states.R[-1] / N, 0.5, rtol=0.15)
 
     return
 

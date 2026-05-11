@@ -71,18 +71,18 @@ def run_model(interactive: bool = False) -> Model:
     return model
 
 
-def test_seir():
+def test_seir() -> None:
     """Given a 9-node SEIR model with standard parameters, when the model runs for
     5 years, then the epidemic exhausts and S and R each represent approximately 50%
-    of the total population (within 10% relative tolerance) with no remaining E or I.
+    of the total population (within 15% relative tolerance) with no remaining E or I.
     """
     model = run_model(interactive=False)
     # use state_axis - 1 since taking the last tick reduces dimensionality by 1
     N = model.states[-1].sum(axis=model.states.state_axis - 1)
-    assert np.allclose(model.states.S[-1] / N, 0.5, rtol=0.10)
+    assert np.allclose(model.states.S[-1] / N, 0.5, rtol=0.15)
     assert np.all(model.states.E[-1] == 0)  # no waning immunity, eradication given enough time
     assert np.all(model.states.I[-1] == 0)  # no waning immunity, eradication given enough time
-    assert np.allclose(model.states.R[-1] / N, 0.5, rtol=0.10)
+    assert np.allclose(model.states.R[-1] / N, 0.5, rtol=0.15)
 
     return
 

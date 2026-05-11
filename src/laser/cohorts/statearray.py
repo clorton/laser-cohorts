@@ -1,6 +1,7 @@
 """StateArray: a NumPy ndarray subclass with named compartment access."""
 
 import numpy as np
+from typing import Any
 
 
 class StateArray(np.ndarray):
@@ -25,9 +26,9 @@ class StateArray(np.ndarray):
         state_axis: int,
         source_array: np.ndarray | None = None,
         shape: tuple[int, ...] | None = None,
-        dtype=np.uint32,
-        default_value=0,
-    ):
+        dtype: Type[int] | Type[float] | type[np.generic] = np.uint32,
+        default_value: int | float = 0,
+    ) -> "StateArray":
         """Create a new StateArray instance.
 
         The StateArray can be created either by providing a source_array or by specifying the shape and default_value.
@@ -83,7 +84,7 @@ class StateArray(np.ndarray):
         return obj
 
     @staticmethod
-    def _cache_state_views(obj):
+    def _cache_state_views(obj: "StateArray") -> None:
         """Build and cache a plain-ndarray view for each named state compartment.
 
         Pre-computes an ndarray slice selecting each state's index along
@@ -109,7 +110,7 @@ class StateArray(np.ndarray):
 
         return
 
-    def __array_finalize__(self, obj):
+    def __array_finalize__(self, obj: np.ndarray | None) -> None:
         """Propagate StateArray metadata to views and new instances.
 
         Called by NumPy whenever a new StateArray is created via slicing, view
@@ -136,7 +137,7 @@ class StateArray(np.ndarray):
 
         return
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """Return the cached ndarray view for a registered state name.
 
         Only invoked when normal attribute lookup has already failed.  Checks
@@ -161,7 +162,7 @@ class StateArray(np.ndarray):
 
         return super().__getattribute__(name)
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Any) -> None:
         """Assign a value to a registered state compartment or an internal attribute.
 
         Private attributes (prefixed with ``_``) bypass the state-name check and
@@ -199,7 +200,7 @@ class StateArray(np.ndarray):
 
         return
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> np.ndarray:
         """Index the underlying ndarray, always returning a plain ndarray.
 
         Delegates to the underlying ``np.ndarray`` view so that all indexing
@@ -215,7 +216,7 @@ class StateArray(np.ndarray):
         return self.view(np.ndarray)[key]
 
     @property
-    def state_names(self):
+    def state_names(self) -> tuple[str, ...] | None:
         """Return the tuple of registered state compartment names.
 
         Returns:
@@ -240,7 +241,7 @@ class StateArray(np.ndarray):
             raise RuntimeError("state_axis is None")
         return self._state_axis
 
-    def get_state_index(self, name):
+    def get_state_index(self, name: str) -> int | None:
         """Return the numeric axis index for a named state compartment.
 
         Args:

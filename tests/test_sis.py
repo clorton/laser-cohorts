@@ -61,7 +61,7 @@ def run_model(interactive: bool = False) -> Model:
     return model
 
 
-def test_sis():
+def test_sis() -> None:
     """Given a 9-node SIS model with parameters above the epidemic threshold, when the
     model runs for 5 years, then the disease reaches an endemic equilibrium with both
     susceptible and infectious individuals present in at least some nodes.

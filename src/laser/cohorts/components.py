@@ -8,6 +8,8 @@ registered on a `Model` instance and invoked each tick via `setup`,
 
 from typing import Optional, Type
 
+from laser.cohorts.model import Model
+
 import numpy as np
 from laser.generic.utils import ValuesMap
 
@@ -21,7 +23,7 @@ class Susceptible:
     time step.  Initial S counts are read from the scenario at setup.
     """
 
-    def __init__(self, model, mu: Optional[ValuesMap] = None, validating: bool = False):
+    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, validating: bool = False):
         """Initialize the Susceptible component.
 
         Args:
@@ -107,7 +109,7 @@ class Exposed:
     Initial E counts are read from the scenario at setup.
     """
 
-    def __init__(self, model, sigma: ValuesMap, mu: Optional[ValuesMap] = None, validating: bool = False):
+    def __init__(self, model: Model, sigma: ValuesMap, mu: Optional[ValuesMap] = None, validating: bool = False):
         """Initialize the Exposed component.
 
         Args:
@@ -188,7 +190,7 @@ class Exposed:
         ]
 
     @property
-    def states(self) -> list:
+    def states(self) -> list[str]:
         """Return the compartment state names managed by this component.
 
         Returns:
@@ -204,7 +206,7 @@ class Infectious:
     time step.  Initial I counts are read from the scenario at setup.
     """
 
-    def __init__(self, model, mu: Optional[ValuesMap] = None, validating: bool = False):
+    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, validating: bool = False):
         """Initialize the Infectious component.
 
         Args:
@@ -289,7 +291,7 @@ class InfectiousToRecovered(Infectious):
     moving them from I to R.  Used in SIR and SEIR model configurations.
     """
 
-    def __init__(self, model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the InfectiousToRecovered component.
 
         Args:
@@ -366,7 +368,7 @@ class InfectiousToSusceptible(Infectious):
     where immunity is not retained after infection.
     """
 
-    def __init__(self, model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the InfectiousToSusceptible component.
 
         Args:
@@ -443,7 +445,7 @@ class Recovered:
     time step.  Initial R counts are read from the scenario at setup.
     """
 
-    def __init__(self, model, mu: Optional[ValuesMap] = None, validating: bool = False):
+    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, validating: bool = False):
         """Initialize the Recovered component.
 
         Args:
@@ -528,7 +530,7 @@ class RecoveredToSusceptible(Recovered):
     and moving them from R to S.  Used in SIRS model configurations.
     """
 
-    def __init__(self, model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the RecoveredToSusceptible component.
 
         Args:
@@ -609,7 +611,7 @@ class TransmissionCommon:
     named node property.
     """
 
-    def __init__(self, model, beta: ValuesMap, sink_name: str, flow_name: str, validating: bool = False) -> None:
+    def __init__(self, model: Model, beta: ValuesMap, sink_name: str, flow_name: str, validating: bool = False) -> None:
         """Initialize the transmission component.
 
         Args:
@@ -700,7 +702,7 @@ class TransmissionSI(TransmissionCommon):
     immediately.
     """
 
-    def __init__(self, model, beta: ValuesMap, validating: bool = False) -> None:
+    def __init__(self, model: Model, beta: ValuesMap, validating: bool = False) -> None:
         """Initialize the S → I transmission component.
 
         Args:
@@ -757,7 +759,7 @@ class TransmissionSE(TransmissionCommon):
     compartment before becoming infectious.
     """
 
-    def __init__(self, model, beta: ValuesMap, validating: bool = False) -> None:
+    def __init__(self, model: Model, beta: ValuesMap, validating: bool = False) -> None:
         """Initialize the S → E transmission component.
 
         Args:

@@ -57,7 +57,7 @@ def run_model(interactive: bool = False) -> Model:
     return model
 
 
-def test_si():
+def test_si() -> None:
     """Given a 9-node SI model (no recovery), when the model runs for 5 years,
     then the susceptible compartment is fully depleted and all individuals are
     infectious.

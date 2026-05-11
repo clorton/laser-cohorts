@@ -67,7 +67,7 @@ def run_model(interactive: bool = False) -> Model:
     return model
 
 
-def test_sirs():
+def test_sirs() -> None:
     """Given a 9-node SIRS model with waning immunity, when the model runs for 5 years,
     then the compartment ordering S > R >= I holds at all nodes, reflecting the waning
     immunity dynamic that recycles recovered individuals back to susceptible.

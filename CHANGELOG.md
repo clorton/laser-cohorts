@@ -23,6 +23,18 @@
 - `tests/test_statearray.py` fixtures `zero_data`, `sample_data`, `tsp_data`, `sap_data`, `tsap_data`: added formal `Returns:` sections
 - `components.py` `TransmissionSE.properties`: corrected return type annotation from `-> list` to `-> list[PropertyType]` (linter fix)
 
+### Added (type annotations pass)
+- Type annotations to all methods in `src/laser/cohorts/statearray.py`: `__new__` (`-> "StateArray"`, `dtype: Any`, `default_value: int | float`), `_cache_state_views` (`obj: "StateArray"`, `-> None`), `__array_finalize__` (`obj: np.ndarray | None`, `-> None`), `__getattr__` (`name: str`, `-> Any`), `__setattr__` (`name: str, value: Any`, `-> None`), `__getitem__` (`key: Any`, `-> np.ndarray`), `state_names` (`-> tuple[str, ...] | None`), `get_state_index` (`name: str`, `-> int | None`)
+- `from typing import Any` import to `src/laser/cohorts/statearray.py`
+- `model: Model` parameter type annotation to all 10 component `__init__` methods in `src/laser/cohorts/components.py` (via `TYPE_CHECKING` guard to avoid circular import)
+- `from __future__ import annotations` and `TYPE_CHECKING` import guard to `src/laser/cohorts/components.py`
+- `proposal: list` parameter type annotation to `Model.components` setter in `src/laser/cohorts/model.py`
+- `-> None` return type annotations to all ~70 test methods in `tests/test_statearray.py`; fixture parameter types (`np.ndarray`) for all fixture-receiving test methods
+- `-> None` return type annotations to `test_*` functions in all 8 model integration test files
+
+### Fixed (type annotations pass)
+- `components.py` `Exposed.states`: corrected return type annotation from `-> list` to `-> list[str]`
+
 ### Added (second pass — discovered in post-edit audit)
 - Module docstrings to `src/laser/cohorts/SI.py`, `SIR.py`, `SIS.py`, `SIRS.py`, `SEI.py`, `SEIR.py`, `SEIS.py`, `SEIRS.py` (model preset files omitted from first pass)
 - Module docstring to `src/laser/cohorts/vitaldynamics.py` (empty placeholder file)

@@ -66,7 +66,7 @@ def run_model(interactive: bool = False) -> Model:
     return model
 
 
-def test_seis():
+def test_seis() -> None:
     """Given a 9-node SEIS model with slow transmission and very slow recovery, when the
     model runs for 5 years, then the disease reaches an endemic state with all three
     compartments populated and the ordering E < S < I holding at every node.

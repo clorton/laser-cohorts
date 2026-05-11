@@ -63,7 +63,7 @@ def run_model(interactive: bool = False) -> Model:
     return model
 
 
-def test_sei():
+def test_sei() -> None:
     """Given a 9-node SEI model with no recovery mechanism, when the model runs for
     5 years, then the entire initial population has accumulated in the infectious
     compartment.

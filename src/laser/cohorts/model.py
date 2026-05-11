@@ -48,7 +48,7 @@ class Model:
         return list(self._components)
 
     @components.setter
-    def components(self, proposal) -> None:
+    def components(self, proposal: list) -> None:
         """Set model components and initialize states and node properties.
 
         Collects unique state names and node properties from all components,
