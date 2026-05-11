@@ -44,3 +44,11 @@
 - Module docstrings to `src/laser/cohorts/SI.py`, `SIR.py`, `SIS.py`, `SIRS.py`, `SEI.py`, `SEIR.py`, `SEIS.py`, `SEIRS.py` (model preset files omitted from first pass)
 - Module docstring to `src/laser/cohorts/vitaldynamics.py` (empty placeholder file)
 - Module docstrings to all 8 model integration test files (`tests/test_sir.py` … `tests/test_seis.py`)
+
+### Added (run_model params + CLI)
+- Optional `params: dict | None` argument to all 8 `run_model()` helpers; defaults merged via `PropertySet({**defaults, **(params or {})})`
+- Each `test_*` function now passes its parameter values explicitly via `params=` so tests remain valid if defaults change
+- `if __name__ == "__main__"` blocks replaced with `argparse` CLIs accepting arbitrary `KEY=VALUE` positional arguments plus `--interactive`
+
+### Fixed (stochastic test stability)
+- Added `laser.core.random.seed()` to `test_seir`, `test_seirs`, `test_sir`, `test_sirs`, `test_seis`, and `test_sis` to prevent flaky failures caused by stochastic epidemic extinction in nodes with large populations relative to the 10-individual initial seed

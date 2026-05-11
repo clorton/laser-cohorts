@@ -530,20 +530,20 @@ class RecoveredToSusceptible(Recovered):
     and moving them from R to S.  Used in SIRS model configurations.
     """
 
-    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, gamma: Optional[ValuesMap] = None, validating: bool = False) -> None:
+    def __init__(self, model: Model, mu: Optional[ValuesMap] = None, omega: Optional[ValuesMap] = None, validating: bool = False) -> None:
         """Initialize the RecoveredToSusceptible component.
 
         Args:
             model (Model): The parent model instance.
             mu (ValuesMap | None): Per-tick, per-node non-disease mortality rate.
                 Defaults to zero if not provided.
-            gamma (ValuesMap | None): Per-tick, per-node rate of waning immunity
+            omega (ValuesMap | None): Per-tick, per-node rate of waning immunity
                 (R → S).  Defaults to zero if not provided.
             validating (bool): Enable validation checks during simulation.
         """
         super().__init__(model, mu, validating)
 
-        self.gamma = gamma if gamma is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
+        self.omega = omega if omega is not None else ValuesMap.from_scalar(0, model.params.nticks, len(model.scenario))
 
         return
 
@@ -558,7 +558,7 @@ class RecoveredToSusceptible(Recovered):
         """Apply non-disease mortality and waning immunity (R → S) to recovered individuals.
 
         Delegates non-disease mortality to the parent `Recovered.step`, then
-        draws individuals with waned immunity from a binomial using `gamma`,
+        draws individuals with waned immunity from a binomial using `omega`,
         moving them from R to S and recording the flow in `nodes.newly_susceptible`.
 
         Args:
@@ -568,7 +568,7 @@ class RecoveredToSusceptible(Recovered):
 
         # Disease progression - waning
         rec = self.model.states.R
-        probability = -np.expm1(-self.gamma[tick])
+        probability = -np.expm1(-self.omega[tick])
         newly_susceptible = np.random.binomial(rec[tick + 1], probability).astype(rec.dtype)
         self.model.nodes.newly_susceptible[tick] += newly_susceptible
         rec[tick + 1] -= newly_susceptible
