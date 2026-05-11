@@ -73,6 +73,14 @@
 - `components.py` `RecoveredToSusceptible.__init__`: renamed parameter `omega` → `r_waning`; updated `self.omega` → `self.r_waning` and all internal references
 - All 7 affected model integration test files (`test_sir.py`, `test_sis.py`, `test_sirs.py`, `test_sei.py`, `test_seir.py`, `test_seis.py`, `test_seirs.py`): updated component constructor keyword arguments, local variable names, `PropertySet` keys, and docstrings to match new parameter names
 
+### Changed (NonDiseaseMortality parameter rename)
+- `vitaldynamics.py` `NonDiseaseMortality.__init__`: renamed parameter `mu` → `r_mortality`; updated `self.mu` → `self.r_mortality` and internal `step` reference
+- `tests/test_mortality.py`: renamed all `mu=` keyword arguments to `r_mortality=`, local variables `mu`/`mu_array` → `r_mortality`, `ndm.mu` → `ndm.r_mortality`, test function names, and all docstring references
+
+### Changed (NonDiseaseMortality vectorised step)
+- `vitaldynamics.py` `NonDiseaseMortality.setup`: replaced per-state view caching (`_state_views`) with a single boolean mask array (`_state_mask`) built via `StateArray.get_state_index`
+- `vitaldynamics.py` `NonDiseaseMortality.step`: replaced loop over individual state views with a single vectorised boolean-index selection, one `np.random.binomial` call across all active states, and `mortality.sum(axis=0)` to accumulate per-node totals
+
 ### Changed (NonDiseaseMortality states parameter)
 - `vitaldynamics.py`: `NonDiseaseMortality.__init__` `states` parameter type widened from `set[str] | None` to `Iterable[str] | None` (accepts list, tuple, set, generator, or any iterable); iterable is materialized to a `set` in `__init__` to support one-shot iterables; `Optional` import replaced with `collections.abc.Iterable`
 - `tests/test_mortality.py`: added `test_states_as_list_restricts_mortality` and `test_states_as_tuple_restricts_mortality`; updated existing set-form test docstring to note it tests set specifically

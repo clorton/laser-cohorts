@@ -25,23 +25,23 @@ class NonDiseaseMortality:
     mask over the state axis.
 
     Example:
-        >>> ndm = NonDiseaseMortality(model, mu=1/365/70)  # ~70-year life expectancy
-        >>> ndm_s_only = NonDiseaseMortality(model, mu=1/365/70, states=["S"])
+        >>> ndm = NonDiseaseMortality(model, r_mortality=1/365/70)  # ~70-year life expectancy
+        >>> ndm_s_only = NonDiseaseMortality(model, r_mortality=1/365/70, states=["S"])
     """
 
     def __init__(
         self,
         model: Model,
-        mu: int | float | ValuesMap | np.ndarray,
+        r_mortality: int | float | ValuesMap | np.ndarray,
         states: Iterable[str] | None = None,
     ) -> None:
         """Initialize the NonDiseaseMortality component.
 
         Args:
             model (Model): The parent model instance.
-            mu (int | float | ValuesMap | np.ndarray): Per-tick, per-node crude
-                mortality rate.  A scalar is broadcast to all ticks and nodes via
-                ``ValuesMap.from_scalar``; a ``ValuesMap`` or 2-D array of shape
+            r_mortality (int | float | ValuesMap | np.ndarray): Per-tick, per-node
+                crude mortality rate.  A scalar is broadcast to all ticks and nodes
+                via ``ValuesMap.from_scalar``; a ``ValuesMap`` or 2-D array of shape
                 ``(nticks, nnodes)`` is used directly.
             states (Iterable[str] | None): Names of compartment states to apply
                 mortality to.  Accepts any iterable (list, tuple, set, generator,
@@ -49,27 +49,31 @@ class NonDiseaseMortality:
                 ``model.states``.
         """
         self.model = model
-        if np.isscalar(mu):
-            self.mu = ValuesMap.from_scalar(mu, model.params.nticks, len(model.scenario))
+        if np.isscalar(r_mortality):
+            self.r_mortality = ValuesMap.from_scalar(r_mortality, model.params.nticks, len(model.scenario))
         else:
-            self.mu = mu
+            self.r_mortality = r_mortality
         self._requested_states = set(states) if states is not None else None
-        self._state_views: list[np.ndarray] = []
+        self._state_mask: np.ndarray | slice | None = None
 
     def setup(self) -> None:
-        """Cache plain-ndarray views for the target compartment states.
+        """Build a boolean state mask for the target compartment states.
 
         Resolves which states to apply mortality to — all states when
-        ``states`` was ``None``, or the requested subset — then caches a view
-        for each so that ``step`` can modify them in place without repeated
-        attribute lookups.
+        ``states`` was ``None``, or the requested subset — then builds a
+        boolean mask over the state axis using ``get_state_index`` so that
+        ``step`` can select all target states in one vectorised operation.
         """
         all_names = self.model.states.state_names or ()
         if self._requested_states is None:
-            active = list(all_names)
+            mask = slice(None) # equivalent to `:`
         else:
-            active = [n for n in all_names if n in self._requested_states]
-        self._state_views = [getattr(self.model.states, name) for name in active]
+            mask = np.zeros(len(all_names), dtype=bool)
+            for name in self._requested_states:
+                idx = self.model.states.get_state_index(name)
+                if idx is not None:
+                    mask[idx] = True
+        self._state_mask = mask
 
     def start_step(self, tick: int) -> None:
         """No-op start-of-step hook.
@@ -80,21 +84,24 @@ class NonDiseaseMortality:
         pass
 
     def step(self, tick: int) -> None:
-        """Apply binomial mortality draws to all target states.
+        """Apply binomial mortality draws to all target states in one operation.
 
-        For each target compartment, converts the mortality rate to a per-tick
-        survival probability via ``-expm1(-mu)``, draws deaths from a binomial
-        distribution, subtracts them from the compartment at ``tick+1``, and
-        accumulates them in ``nodes.non_disease_mortality``.
+        Selects all target compartments at ``tick+1`` via the boolean state
+        mask, draws deaths from a binomial distribution for all of them at
+        once, subtracts the deaths back via boolean-index assignment, and
+        accumulates per-node totals in ``nodes.non_disease_mortality``.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        probability = -np.expm1(-self.mu[tick])
-        for state_view in self._state_views:
-            mortality = np.random.binomial(state_view[tick + 1], probability).astype(np.int32)
-            self.model.nodes.non_disease_mortality[tick] += mortality
-            state_view[tick + 1] -= mortality
+        probability = -np.expm1(-self.r_mortality[tick])
+        states_at_tick = self.model.states[tick + 1]  # view: (nstates, nnodes)
+        active = states_at_tick[self._state_mask]  # copy: (n_active, nnodes)
+        mortality = np.random.binomial(active, probability).astype(np.int32)
+        # states_at_tick reduces dimensionality by 1
+        axis = self.model.states.state_axis - 1
+        self.model.nodes.non_disease_mortality[tick] += mortality.sum(axis=axis)
+        states_at_tick[self._state_mask] -= mortality
 
     def end_step(self, tick: int) -> None:
         """No-op end-of-step hook.

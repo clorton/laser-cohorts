@@ -18,7 +18,7 @@ def _scenario(n_nodes: int = 1, s_init: int = 1000, i_init: int = 0):
 
 
 def test_zero_mortality_preserves_populations() -> None:
-    """Given a model with S=1000 and mu=0, when the model runs for 10 ticks,
+    """Given a model with S=1000 and r_mortality=0, when the model runs for 10 ticks,
     then S is unchanged at every tick — zero mortality rate produces zero deaths.
     """
     scenario = _scenario(s_init=1000)
@@ -26,29 +26,29 @@ def test_zero_mortality_preserves_populations() -> None:
     model = Model(scenario, params)
     model.components = [
         Susceptible(model),
-        NonDiseaseMortality(model, mu=0),
+        NonDiseaseMortality(model, r_mortality=0),
     ]
     model.run()
     assert np.all(model.states.S == 1000)
 
 
 def test_certain_mortality_empties_compartment() -> None:
-    """Given a model with S=500 and mu=inf, when the model runs for 1 tick,
-    then S is 0 — mu=inf converts to probability=1, guaranteeing all deaths.
+    """Given a model with S=500 and r_mortality=inf, when the model runs for 1 tick,
+    then S is 0 — r_mortality=inf converts to probability=1, guaranteeing all deaths.
     """
     scenario = _scenario(s_init=500)
     params = PropertySet({"nticks": 1})
     model = Model(scenario, params)
     model.components = [
         Susceptible(model),
-        NonDiseaseMortality(model, mu=np.inf),
+        NonDiseaseMortality(model, r_mortality=np.inf),
     ]
     model.run()
     assert np.all(model.states.S[-1] == 0)
 
 
 def test_deaths_accumulated_in_node_property() -> None:
-    """Given a model with S=800 and mu=inf, when the model runs for 1 tick,
+    """Given a model with S=800 and r_mortality=inf, when the model runs for 1 tick,
     then non_disease_mortality[0] equals 800 — every death is recorded.
 
     Failure implies the node property accumulation is broken or off-by-one.
@@ -58,7 +58,7 @@ def test_deaths_accumulated_in_node_property() -> None:
     model = Model(scenario, params)
     model.components = [
         Susceptible(model),
-        NonDiseaseMortality(model, mu=np.inf),
+        NonDiseaseMortality(model, r_mortality=np.inf),
     ]
     model.run()
     assert np.all(model.nodes.non_disease_mortality[0] == 800)
@@ -66,7 +66,7 @@ def test_deaths_accumulated_in_node_property() -> None:
 
 def test_subset_states_leaves_other_states_unchanged() -> None:
     """Given a model with S=500 and I=300, when NonDiseaseMortality runs with
-    mu=inf and states={'S'} (a set), then S becomes 0 while I remains 300.
+    r_mortality=inf and states={'S'} (a set), then S becomes 0 while I remains 300.
 
     Failure implies the state mask is not restricting mortality correctly.
     """
@@ -76,7 +76,7 @@ def test_subset_states_leaves_other_states_unchanged() -> None:
     model.components = [
         Susceptible(model),
         Infectious(model),
-        NonDiseaseMortality(model, mu=np.inf, states={"S"}),
+        NonDiseaseMortality(model, r_mortality=np.inf, states={"S"}),
     ]
     model.run()
     assert np.all(model.states.S[-1] == 0)
@@ -85,7 +85,7 @@ def test_subset_states_leaves_other_states_unchanged() -> None:
 
 def test_states_as_list_restricts_mortality() -> None:
     """Given a model with S=500 and I=300, when NonDiseaseMortality runs with
-    mu=inf and states=['S'] (a list), then S becomes 0 while I remains 300.
+    r_mortality=inf and states=['S'] (a list), then S becomes 0 while I remains 300.
 
     Failure implies list iterables are not accepted or not handled correctly.
     """
@@ -95,7 +95,7 @@ def test_states_as_list_restricts_mortality() -> None:
     model.components = [
         Susceptible(model),
         Infectious(model),
-        NonDiseaseMortality(model, mu=np.inf, states=["S"]),
+        NonDiseaseMortality(model, r_mortality=np.inf, states=["S"]),
     ]
     model.run()
     assert np.all(model.states.S[-1] == 0)
@@ -104,7 +104,7 @@ def test_states_as_list_restricts_mortality() -> None:
 
 def test_states_as_tuple_restricts_mortality() -> None:
     """Given a model with S=500 and I=300, when NonDiseaseMortality runs with
-    mu=inf and states=('S',) (a tuple), then S becomes 0 while I remains 300.
+    r_mortality=inf and states=('S',) (a tuple), then S becomes 0 while I remains 300.
 
     Failure implies tuple iterables are not accepted or not handled correctly.
     """
@@ -114,7 +114,7 @@ def test_states_as_tuple_restricts_mortality() -> None:
     model.components = [
         Susceptible(model),
         Infectious(model),
-        NonDiseaseMortality(model, mu=np.inf, states=("S",)),
+        NonDiseaseMortality(model, r_mortality=np.inf, states=("S",)),
     ]
     model.run()
     assert np.all(model.states.S[-1] == 0)
@@ -123,7 +123,7 @@ def test_states_as_tuple_restricts_mortality() -> None:
 
 def test_all_states_affected_when_states_is_none() -> None:
     """Given a model with S=500 and I=300, when NonDiseaseMortality runs with
-    mu=inf and states=None, then both S and I become 0.
+    r_mortality=inf and states=None, then both S and I become 0.
 
     Failure implies the default (all-states) behaviour is not working.
     """
@@ -133,53 +133,54 @@ def test_all_states_affected_when_states_is_none() -> None:
     model.components = [
         Susceptible(model),
         Infectious(model),
-        NonDiseaseMortality(model, mu=np.inf, states=None),
+        NonDiseaseMortality(model, r_mortality=np.inf, states=None),
     ]
     model.run()
     assert np.all(model.states.S[-1] == 0)
     assert np.all(model.states.I[-1] == 0)
 
 
-def test_scalar_mu_is_converted_to_valuesmap() -> None:
-    """Given a scalar mu=0.05, when NonDiseaseMortality is constructed, then its
-    mu attribute is a ValuesMap — scalar inputs must always be normalised.
+def test_scalar_r_mortality_is_converted_to_valuesmap() -> None:
+    """Given a scalar r_mortality=0.05, when NonDiseaseMortality is constructed,
+    then its r_mortality attribute is a ValuesMap — scalar inputs must always be
+    normalised.
     """
     scenario = _scenario()
     params = PropertySet({"nticks": 5})
     model = Model(scenario, params)
-    ndm = NonDiseaseMortality(model, mu=0.05)
-    assert isinstance(ndm.mu, ValuesMap)
+    ndm = NonDiseaseMortality(model, r_mortality=0.05)
+    assert isinstance(ndm.r_mortality, ValuesMap)
 
 
-def test_valuesmap_mu_accepted_unchanged() -> None:
-    """Given mu as a zero-valued ValuesMap, when the model runs for 5 ticks,
+def test_valuesmap_r_mortality_accepted_unchanged() -> None:
+    """Given r_mortality as a zero-valued ValuesMap, when the model runs for 5 ticks,
     then S is unchanged — ValuesMap inputs are used directly without conversion.
     """
     scenario = _scenario(s_init=600)
     nticks = 5
     params = PropertySet({"nticks": nticks})
     model = Model(scenario, params)
-    mu = ValuesMap.from_scalar(0, nticks, len(scenario))
+    r_mortality = ValuesMap.from_scalar(0, nticks, len(scenario))
     model.components = [
         Susceptible(model),
-        NonDiseaseMortality(model, mu=mu),
+        NonDiseaseMortality(model, r_mortality=r_mortality),
     ]
     model.run()
     assert np.all(model.states.S[-1] == 600)
 
 
-def test_ndarray_mu_accepted_unchanged() -> None:
-    """Given mu as a 2-D zero numpy array of shape (nticks, nnodes), when the
-    model runs for 5 ticks, then S is unchanged — ndarray inputs are used directly.
+def test_ndarray_r_mortality_accepted_unchanged() -> None:
+    """Given r_mortality as a 2-D zero numpy array of shape (nticks, nnodes), when
+    the model runs for 5 ticks, then S is unchanged — ndarray inputs are used directly.
     """
     scenario = _scenario(s_init=400)
     nticks = 5
     params = PropertySet({"nticks": nticks})
     model = Model(scenario, params)
-    mu_array = np.zeros((nticks, len(scenario)))
+    r_mortality = np.zeros((nticks, len(scenario)))
     model.components = [
         Susceptible(model),
-        NonDiseaseMortality(model, mu=mu_array),
+        NonDiseaseMortality(model, r_mortality=r_mortality),
     ]
     model.run()
     assert np.all(model.states.S[-1] == 400)
