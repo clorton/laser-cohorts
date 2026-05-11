@@ -1,3 +1,5 @@
+"""Integration test for the SI model preset."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 from laser.core import PropertySet

@@ -1,6 +1,4 @@
-"""
-Tests for StateArray functionality in utils.py
-"""
+"""Tests for StateArray — the named-compartment ndarray subclass in statearray.py."""
 
 import numpy as np
 import pytest
@@ -12,7 +10,10 @@ class TestStateArray:
     """Test cases for StateArray wrapper class."""
 
     def test_basic_creation(self):
-        """Test basic StateArray creation and initialization."""
+        """Given a zeroed (3, 10) array and names ["S", "I", "R"], when a StateArray is
+        constructed with state_axis=0, then the shape is (3, 10) and state_names equals
+        the expected tuple.
+        """
         data = np.zeros((3, 10))
         state_names = ["S", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -26,7 +27,9 @@ class TestStateArray:
         )
 
     def test_attribute_access(self):
-        """Test accessing states by attribute names."""
+        """Given an SEIR StateArray, when each state name is accessed as an attribute,
+        then the returned array equals the corresponding row retrieved by integer index.
+        """
         data = np.zeros((4, 5))
         state_names = ["S", "E", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -38,7 +41,10 @@ class TestStateArray:
         assert np.array_equal(states.R, states[3])
 
     def test_attribute_assignment(self):
-        """Test assigning values through attribute access."""
+        """Given an SIR StateArray initialized to zeros, when scalar values are
+        broadcast-assigned via named attributes, then each corresponding row contains
+        only the assigned value.
+        """
         data = np.zeros((3, 10))
         state_names = ["S", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -53,7 +59,10 @@ class TestStateArray:
         assert np.all(states[2] == 100)
 
     def test_slicing_operations(self):
-        """Test that slicing works with attribute access."""
+        """Given an SIR StateArray backed by random data, when specific patch indices
+        are selected via named-attribute slicing, then the result matches the equivalent
+        integer-indexed row slice.
+        """
         data = np.random.rand(3, 10)
         state_names = ["S", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -69,7 +78,10 @@ class TestStateArray:
         assert np.array_equal(i_subset, states[1, patch_indices])
 
     def test_numpy_operations(self):
-        """Test that numpy operations work correctly."""
+        """Given an SIR StateArray where every element equals 100, when the array is
+        summed along axis 0, then total population is 300 per patch and the I prevalence
+        equals 1/3.
+        """
         data = np.ones((3, 5)) * 100
         state_names = ["S", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -83,7 +95,10 @@ class TestStateArray:
         assert np.all(prevalence == 1 / 3)  # 100 / 300
 
     def test_backward_compatibility(self):
-        """Test that numeric indexing still works."""
+        """Given an SEIR StateArray backed by random data, when the same element is
+        accessed by both integer index and named attribute, then both return identical
+        arrays.
+        """
         data = np.random.rand(4, 8)
         state_names = ["S", "E", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -95,7 +110,9 @@ class TestStateArray:
         assert np.array_equal(states[3], states.R)
 
     def test_invalid_attribute_access(self):
-        """Test that invalid attribute names raise AttributeError."""
+        """Given an SIR StateArray, when an attribute name not registered as a state
+        is read or written, then AttributeError is raised.
+        """
         data = np.zeros((3, 5))
         state_names = ["S", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -107,7 +124,10 @@ class TestStateArray:
             states.Y = 100  # Y is not a valid state name
 
     def test_different_state_configurations(self):
-        """Test StateArray with different state configurations."""
+        """Given SIR and SEIR StateArrays constructed with different name lists, when
+        each is interrogated via hasattr for its declared and undeclared states, then
+        only the states registered at construction time are present.
+        """
         # Test SIR model (biweekly)
         sir_data = np.zeros((3, 10))
         sir_states = StateArray(source_array=sir_data, state_names=["S", "I", "R"], state_axis=0)
@@ -127,7 +147,10 @@ class TestStateArray:
         assert hasattr(seir_states, "R")
 
     def test_get_state_index(self):
-        """Test the get_state_index utility method."""
+        """Given an SEIR StateArray, when get_state_index is called for each registered
+        name and for an unknown name, then it returns the correct zero-based integer
+        index or None respectively.
+        """
         data = np.zeros((4, 5))
         state_names = ["S", "E", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -143,7 +166,12 @@ class TestStateArray:
     # dimensionality is appropriate to the original StateArray
     @pytest.mark.skip(reason="StateArray slicing now returns a plain ndarray, so finalize is not relevant")
     def test_array_finalize(self):
-        """Test that StateArray metadata is preserved during operations."""
+        """Given an SIR StateArray, when a column slice is taken, then the result is a
+        StateArray preserving the original state_names.
+
+        Skipped: __getitem__ now delegates to the plain ndarray, so column slices return
+        a base ndarray rather than a StateArray.
+        """
         data = np.ones((3, 5))
         state_names = ["S", "I", "R"]
         states = StateArray(source_array=data, state_names=state_names, state_axis=0)
@@ -154,7 +182,10 @@ class TestStateArray:
         assert subset.state_names == ["S", "I", "R"]
 
     def test_realistic_epidemiological_operations(self):
-        """Test realistic epidemiological operations."""
+        """Given a zeroed SEIR StateArray, when an infection event moves individuals
+        from S to E via in-place arithmetic on named attributes, then total population
+        is conserved and I prevalence is non-negative everywhere.
+        """
         # Setup initial SEIR population
         num_patches = 10
         data = np.zeros((4, num_patches))
@@ -1333,11 +1364,10 @@ class TestConstructionPaths:
     #     return
 
     def test_view_casting(self, sample_data):
-        """
-        arr = np.zeros((3,))
-        # take a view of it, as our subclass
-        state_array = arr.view(StateArray)
-        type(state_array)
+        """Given a plain ndarray, when viewed as StateArray via .view(StateArray), then
+        the result is a StateArray instance but state_names, _state_axis, and
+        get_state_index all return None because the metadata cannot be reconstructed
+        from a bare view cast.
         """
         # given
         # sample_data
@@ -1356,10 +1386,9 @@ class TestConstructionPaths:
         return
 
     def test_new_from_template(self):
-        """
-        v = c_arr[1:]
-        type(v) # the view is of type 'C'
-        v is not c_arr # but it's a new instance
+        """Given a StateArray, when an integer-indexed slice (sa[1:]) is taken, then
+        the result is a plain ndarray rather than a StateArray because __getitem__
+        delegates directly to the underlying array, intentionally dropping the subclass.
         """
         # given
         sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
@@ -1394,6 +1423,10 @@ class TestConstructionPaths:
         return
 
     def test_from_ufunc(self):
+        """Given a populated StateArray, when divided element-wise by its row sums via
+        a NumPy ufunc, then the result is a StateArray preserving state_names,
+        state_axis, and the full _state_to_view registry.
+        """
         # given
         sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
         sa.S = 10_000

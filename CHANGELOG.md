@@ -14,3 +14,12 @@
 - `StateArray.state_axis` docstring: added missing `Raises` section documenting `RuntimeError`
 - `StateArray.state_names` docstring: added `Returns` section
 - `StateArray.get_state_index` docstring: added `Args` and `Returns` sections
+- `tests/test_statearray.py` module docstring: corrected incorrect reference to `utils.py` (StateArray lives in `statearray.py`)
+- `tests/test_statearray.py` `TestStateArray` class: replaced 11 single-line docstrings with Given/When/Then descriptions
+- `tests/test_statearray.py` `TestConstructionPaths.test_view_casting` and `test_new_from_template`: replaced embedded code-snippet docstrings with Given/When/Then descriptions
+- `tests/test_statearray.py` `TestConstructionPaths.test_from_ufunc`: added missing docstring
+
+### Added (second pass — discovered in post-edit audit)
+- Module docstrings to `src/laser/cohorts/SI.py`, `SIR.py`, `SIS.py`, `SIRS.py`, `SEI.py`, `SEIR.py`, `SEIS.py`, `SEIRS.py` (model preset files omitted from first pass)
+- Module docstring to `src/laser/cohorts/vitaldynamics.py` (empty placeholder file)
+- Module docstrings to all 8 model integration test files (`tests/test_sir.py` … `tests/test_seis.py`)

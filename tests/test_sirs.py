@@ -1,3 +1,5 @@
+"""Integration test for the SIRS model preset."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 

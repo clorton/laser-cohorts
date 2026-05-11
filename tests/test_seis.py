@@ -1,3 +1,5 @@
+"""Integration test for the SEIS model preset."""
+
 import matplotlib.pyplot as plt
 import numpy as np
 
