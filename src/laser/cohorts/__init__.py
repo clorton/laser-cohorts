@@ -20,9 +20,11 @@ from .components import TransmissionSE
 from .model import Model
 from .statearray import StateArray
 from .utils import PropertyType
+from .vitaldynamics import ConstantPopBirths
 from .vitaldynamics import NonDiseaseMortality
 
 __all__ = [
+    "ConstantPopBirths",
     "Exposed",
     "Infectious",
     "InfectiousToRecovered",

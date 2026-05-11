@@ -129,3 +129,79 @@ class NonDiseaseMortality:
                 does not create any new ones.
         """
         return []
+
+
+class ConstantPopBirths:
+    """Constant-population birth component.
+
+    Reads the per-node death count recorded by ``NonDiseaseMortality`` at each
+    tick and adds the same number of individuals back into the S compartment,
+    keeping the total population constant across ticks.
+
+    Must be ordered *after* ``NonDiseaseMortality`` in the component list so
+    that ``non_disease_mortality`` is populated before births are applied.
+
+    Example:
+        >>> ndm = NonDiseaseMortality(model, r_mortality=1/365/70)
+        >>> cpb = ConstantPopBirths(model)
+        >>> model.components = [Susceptible(model), ndm, cpb]
+    """
+
+    def __init__(self, model: Model) -> None:
+        """Initialize the ConstantPopBirths component.
+
+        Args:
+            model (Model): The parent model instance.
+        """
+        self.model = model
+
+    def setup(self) -> None:
+        """No-op setup hook."""
+        pass
+
+    def start_step(self, tick: int) -> None:
+        """No-op start-of-step hook.
+
+        Args:
+            tick (int): Current simulation tick (0-indexed).
+        """
+        pass
+
+    def step(self, tick: int) -> None:
+        """Add births equal to deaths recorded this tick into the S compartment.
+
+        Reads ``nodes.non_disease_mortality[tick]`` — the deaths accumulated by
+        ``NonDiseaseMortality`` during the current tick — and adds that count
+        to ``states.S[tick+1]``, replacing every death with one new susceptible.
+
+        Args:
+            tick (int): Current simulation tick (0-indexed).
+        """
+        births = self.model.nodes.non_disease_mortality[tick]
+        self.model.states.S[tick + 1] += births
+
+    def end_step(self, tick: int) -> None:
+        """No-op end-of-step hook.
+
+        Args:
+            tick (int): Current simulation tick (0-indexed).
+        """
+        pass
+
+    @property
+    def properties(self) -> list[PropertyType]:
+        """Return the node properties required by this component.
+
+        Returns:
+            list[PropertyType]: ``[("non_disease_mortality", nticks, np.int32, 0)]``
+        """
+        return [("non_disease_mortality", self.model.params.nticks, np.int32, 0)]
+
+    @property
+    def states(self) -> list[str]:
+        """Return the compartment states used by this component.
+
+        Returns:
+            list[str]: ``["S"]``
+        """
+        return ["S"]

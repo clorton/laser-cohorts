@@ -73,6 +73,11 @@
 - `components.py` `RecoveredToSusceptible.__init__`: renamed parameter `omega` → `r_waning`; updated `self.omega` → `self.r_waning` and all internal references
 - All 7 affected model integration test files (`test_sir.py`, `test_sis.py`, `test_sirs.py`, `test_sei.py`, `test_seir.py`, `test_seis.py`, `test_seirs.py`): updated component constructor keyword arguments, local variable names, `PropertySet` keys, and docstrings to match new parameter names
 
+### Added (ConstantPopBirths)
+- `src/laser/cohorts/vitaldynamics.py`: implemented `ConstantPopBirths` component; reads `nodes.non_disease_mortality[tick]` and adds the per-node death count back into `states.S[tick+1]`; `properties` declares `non_disease_mortality`; `states` declares `["S"]`
+- `laser.cohorts.ConstantPopBirths` exported from `__init__.py`
+- `tests/test_births.py`: 7 tests covering death replenishment, population conservation over single and multiple states and ticks, zero births when no deaths, births landing only in S, standalone use without `NonDiseaseMortality`, and per-node death-to-birth accounting
+
 ### Changed (NonDiseaseMortality parameter rename)
 - `vitaldynamics.py` `NonDiseaseMortality.__init__`: renamed parameter `mu` → `r_mortality`; updated `self.mu` → `self.r_mortality` and internal `step` reference
 - `tests/test_mortality.py`: renamed all `mu=` keyword arguments to `r_mortality=`, local variables `mu`/`mu_array` → `r_mortality`, `ndm.mu` → `ndm.r_mortality`, test function names, and all docstring references
