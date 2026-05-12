@@ -526,7 +526,15 @@ class TransmissionCommon:
     named node property.
     """
 
-    def __init__(self, model: Model, beta: ValuesMap, sink_name: str, flow_name: str, seasonality: ValuesMap | np.ndarray | None = None, validating: bool = False) -> None:
+    def __init__(
+        self,
+        model: Model,
+        beta: ValuesMap,
+        sink_name: str,
+        flow_name: str,
+        seasonality: ValuesMap | np.ndarray | None = None,
+        validating: bool = False,
+    ) -> None:
         """Initialize the transmission component.
 
         Args:
@@ -536,11 +544,14 @@ class TransmissionCommon:
                 individuals (e.g., ``"I"`` or ``"E"``).
             flow_name (str): Name of the node property that accumulates the
                 newly infected flow count each tick.
+            seasonality (ValuesMap): seasonal transmission factor by time (tick) and location (node)
             validating (bool): Enable validation checks during simulation.
         """
         self.model = model
         self.beta = beta
-        self.seasonality = seasonality if seasonality is not None else ValuesMap.from_scalar(1.0, self.model.params.nticks, len(self.model.scenario))
+        self.seasonality = (
+            seasonality if seasonality is not None else ValuesMap.from_scalar(1.0, self.model.params.nticks, len(self.model.scenario))
+        )
         self.validating = validating
 
         self.sink_name = sink_name
@@ -605,9 +616,7 @@ class TransmissionCommon:
         Returns:
             list[PropertyType]: Empty list; subclasses add the flow property.
         """
-        return [
-            ("force_of_infection", self.model.params.nticks, np.float32, 0.0)
-        ]
+        return [("force_of_infection", self.model.params.nticks, np.float32, 0.0)]
 
     @property
     def states(self) -> list[str]:

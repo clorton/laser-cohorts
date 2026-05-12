@@ -66,7 +66,7 @@ class NonDiseaseMortality:
         """
         all_names = self.model.states.state_names or ()
         if self._requested_states is None:
-            mask = slice(None) # equivalent to `:`
+            mask = slice(None)  # equivalent to `:`
         else:
             mask = np.zeros(len(all_names), dtype=bool)
             for name in self._requested_states:

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added (seasonality and network tests)
+- `tests/test_seasonality.py`: 8 tests covering zero seasonality (no transmission), unit constant matching None default, doubled seasonality increasing infections, step-function first-half zeros, sinusoidal trough (T=364, tick 273), triangle-wave trough (mid-simulation), two-peak annual pattern (four trough zeros over two periods), and extreme 20000× seasonality depleting all susceptibles in the first tick
+- `tests/test_networks.py`: 8 tests covering zero network isolation, full all-to-all connectivity spreading to all nodes, one-directional linear chain, hub-and-spoke two-hop spread, one-directional ring, asymmetric one-way spread with deterministic blocked reverse, symmetric w=0.5 connectivity equalising recovered fractions (within 5pp), and isolated node remaining pristine
+
 ### Added (documentation)
 - `docs/index.md`: rewrote from `laser.generic` boilerplate to `laser.cohorts`-specific content — description, installation, SIR quick-start example, model preset table, key-concepts summary, and API reference link
 - `mkdocs.yml`: updated `site_name`, `site_url`, `repo_name`, `repo_url` to `laser.cohorts`; simplified `nav` to only existing pages (`index.md` and `reference/`)

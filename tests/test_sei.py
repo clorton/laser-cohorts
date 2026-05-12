@@ -33,12 +33,14 @@ def run_model(interactive: bool = False, params: dict | None = None) -> Model:
     seeds = np.maximum(np.minimum(25, scenario.S.values), (scenario.S.values * 0.01).astype(int))
     scenario["S"] -= seeds
     scenario["I"] += seeds
-    p = PropertySet({
-        "nticks": 5 * 365,
-        "beta": 1.0 / 30.0,  # 1 new infection per existing infection every 30 ticks
-        "r_progression": 1.0 / 7.0,  # 7 ticks of incubation (exposure)
-        **(params or {}),
-    })
+    p = PropertySet(
+        {
+            "nticks": 5 * 365,
+            "beta": 1.0 / 30.0,  # 1 new infection per existing infection every 30 ticks
+            "r_progression": 1.0 / 7.0,  # 7 ticks of incubation (exposure)
+            **(params or {}),
+        }
+    )
     model = Model(scenario, p)
 
     betas = ValuesMap.from_scalar(p.beta, p.nticks, len(scenario))  # ty: ignore unresolved-attribute
@@ -85,6 +87,7 @@ def test_sei() -> None:
 
 
 if __name__ == "__main__":
+
     def _parse_value(s: str) -> int | float:
         try:
             return int(s)
