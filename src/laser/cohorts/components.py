@@ -526,7 +526,7 @@ class TransmissionCommon:
     named node property.
     """
 
-    def __init__(self, model: Model, beta: ValuesMap, sink_name: str, flow_name: str, validating: bool = False) -> None:
+    def __init__(self, model: Model, beta: ValuesMap, sink_name: str, flow_name: str, seasonality: ValuesMap | np.ndarray | None = None, validating: bool = False) -> None:
         """Initialize the transmission component.
 
         Args:
@@ -540,6 +540,7 @@ class TransmissionCommon:
         """
         self.model = model
         self.beta = beta
+        self.seasonality = seasonality if seasonality is not None else ValuesMap.from_scalar(1.0, self.model.params.nticks, len(self.model.scenario))
         self.validating = validating
 
         self.sink_name = sink_name
@@ -573,10 +574,17 @@ class TransmissionCommon:
         """
         S = self.model.states.S[tick + 1]
         I = self.model.states.I[tick + 1]  # noqa: E741
-        N = self.model.states[tick + 1].sum(axis=self.model.states.state_axis - 1)
-        rates = self.beta[tick] * I / N
-        probabilities = -np.expm1(-rates)
-        newly_infected = np.random.binomial(S, probabilities).astype(self._flow.dtype)
+        # Use np.maximum to avoid div by zero below. Should be safe since N can only be 0 if I is also 0
+        N = np.maximum(self.model.states[tick + 1].sum(axis=self.model.states.state_axis - 1), 1)
+        foi = self.model.nodes.force_of_infection[tick]
+
+        foi[:] = self.beta[tick] * self.seasonality[tick] * I / N
+        transfer = foi[:, None] * self.model.network
+        foi += transfer.sum(axis=0)
+        foi -= transfer.sum(axis=1)
+        foi = -np.expm1(-foi)  # Convert to probability of infection
+
+        newly_infected = np.random.binomial(S, foi).astype(self._flow.dtype)
         self._flow[tick] = newly_infected
         S -= newly_infected
         self._sink[tick + 1] += newly_infected
@@ -597,7 +605,9 @@ class TransmissionCommon:
         Returns:
             list[PropertyType]: Empty list; subclasses add the flow property.
         """
-        return []
+        return [
+            ("force_of_infection", self.model.params.nticks, np.float32, 0.0)
+        ]
 
     @property
     def states(self) -> list[str]:
@@ -617,7 +627,7 @@ class TransmissionSI(TransmissionCommon):
     immediately.
     """
 
-    def __init__(self, model: Model, beta: ValuesMap, validating: bool = False) -> None:
+    def __init__(self, model: Model, beta: ValuesMap, seasonality: ValuesMap | np.ndarray | None = None, validating: bool = False) -> None:
         """Initialize the S → I transmission component.
 
         Args:
@@ -625,7 +635,7 @@ class TransmissionSI(TransmissionCommon):
             beta (ValuesMap): Per-tick, per-node transmission rate.
             validating (bool): Enable validation checks during simulation.
         """
-        super().__init__(model, beta, "I", "newly_infectious", validating)
+        super().__init__(model, beta, "I", "newly_infectious", seasonality=seasonality, validating=validating)
         return
 
     # def setup(self) -> None:
@@ -674,7 +684,7 @@ class TransmissionSE(TransmissionCommon):
     compartment before becoming infectious.
     """
 
-    def __init__(self, model: Model, beta: ValuesMap, validating: bool = False) -> None:
+    def __init__(self, model: Model, beta: ValuesMap, seasonality: ValuesMap | np.ndarray | None = None, validating: bool = False) -> None:
         """Initialize the S → E transmission component.
 
         Args:
@@ -682,7 +692,7 @@ class TransmissionSE(TransmissionCommon):
             beta (ValuesMap): Per-tick, per-node transmission rate.
             validating (bool): Enable validation checks during simulation.
         """
-        super().__init__(model, beta, "E", "newly_infected", validating)
+        super().__init__(model, beta, "E", "newly_infected", seasonality=seasonality, validating=validating)
 
     # def setup(self) -> None:
     #     super().setup()

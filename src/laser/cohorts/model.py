@@ -2,13 +2,12 @@
 
 import warnings
 from collections.abc import Iterable
+from typing import Optional
 
 import numpy as np
-
 from geopandas.geodataframe import GeoDataFrame
-from typing import Optional
-from laser.core import PropertySet
 from laser.core import LaserFrame
+from laser.core import PropertySet
 
 from laser.cohorts.statearray import StateArray
 
@@ -25,6 +24,9 @@ class Model:
         nodes (LaserFrame): Per-node property storage.
         states (StateArray): Compartment state array of shape
             (nticks+1, n_states, n_nodes).
+        network (np.ndarray): 2-D inter-node mixing matrix of shape
+            (nnodes, nnodes).  Defaults to a uniform-zero scalar set at
+            initialisation.
     """
 
     def __init__(
@@ -50,6 +52,8 @@ class Model:
         self._components = []
         self._carry_forward_states = set(carry_forward_states) if carry_forward_states is not None else None
         self._carry_mask: np.ndarray | slice = slice(None)
+        self.network = np.zeros((len(scenario), len(scenario)), dtype=np.float32)
+
         return
 
     @property
@@ -107,6 +111,38 @@ class Model:
 
         for component in self.components:
             component.setup()
+
+        return
+
+    @property
+    def network(self) -> np.ndarray:
+        """Return the inter-node mixing matrix.
+
+        Returns:
+            np.ndarray: 2-D array of shape ``(nnodes, nnodes)``
+                whose entry ``[i, j]`` gives the connectivity weight from node
+                ``i`` to node ``j``.
+        """
+        return self._network
+
+    @network.setter
+    def network(self, value) -> None:
+        """Set the inter-node mixing matrix.
+
+        Must already be 2-D and exactly ``(nnodes, nnodes)`` in shape.
+
+        Args:
+            value (np.ndarray): Connectivity weights between nodes..
+
+        Raises:
+            ValueError: If ``value`` is not 2-D.
+            ValueError: If ``value.shape`` is not ``(nnodes, nnodes)``.
+        """
+        if not isinstance(value, np.ndarray):
+            raise TypeError(f"network must be a NumPy array, got {type(value)}")
+        if value.shape != (len(self.scenario), len(self.scenario)):
+            raise ValueError(f"network must be shape {(len(self.scenario), len(self.scenario))}, got {value.shape}")
+        self._network = value
 
         return
 
