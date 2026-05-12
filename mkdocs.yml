@@ -32,6 +32,9 @@ theme:
 
 nav:
   - Home: index.md
+  - Model: model.md
+  - Components: components.md
+  - Campaign & interventions: campaign.md
   - API reference: reference/
 
 

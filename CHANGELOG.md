@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added (documentation)
+- `docs/model.md`: new page covering the Model lifecycle (construct → assign components → run), the tick loop order (carry-forward then start_step/step/end_step), `StateArray` access patterns, `carry_forward_states`, and `model.network`
+- `docs/components.md`: new page covering the component protocol, all compartment/transition/transmission components with parameter names, rate-to-probability conversion, `ValuesMap` usage, seasonality, `NonDiseaseMortality`, `ConstantPopBirths`, and `Migration`
+- `docs/campaign.md`: new page covering schedule entry fields, `when` variants, all four loading sources (dict/list/JSON/CSV), the `Vaccination` built-in, and a full custom intervention example with `states`/`properties` declarations
+- `docs/index.md`: fixed stale parameter names (`gamma` → `r_recovery`, `sigma` → `r_progression`, `gamma` (waning) → `r_waning`) in Quick start and Composing custom models code examples; added three new "Learn more" cards linking to the new pages
+- `mkdocs.yml`: added Model, Components, and Campaign & interventions entries to the nav
+
 ### Changed (Model carry_forward_states uses get_state_mask)
 - `src/laser/cohorts/model.py` `Model.components` setter: replaced manual mask-building loop with `StateArray.get_state_mask()`; unknown state names in `carry_forward_states` now raise `ValueError` immediately instead of emitting a `UserWarning` and continuing
 - `src/laser/cohorts/model.py`: removed now-unused `import warnings`

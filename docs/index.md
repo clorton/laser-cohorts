@@ -55,7 +55,7 @@ gammas = ValuesMap.from_scalar(params.gamma, params.nticks, len(scenario))
 
 model.components = [
     SIR.Susceptible(model),
-    SIR.Infectious(model, gamma=gammas),
+    SIR.Infectious(model, r_recovery=gammas),
     SIR.Recovered(model),
     SIR.Transmission(model, beta=betas),
 ]
@@ -101,10 +101,10 @@ from laser.cohorts import (
 # SEIRS model assembled from primitives
 model.components = [
     Susceptible(model),
-    Exposed(model, sigma=sigmas),
-    InfectiousToRecovered(model, gamma=gammas),
+    Exposed(model, r_progression=r_progressions),
+    InfectiousToRecovered(model, r_recovery=r_recoveries),
     Recovered(model),
-    RecoveredToSusceptible(model, gamma=waning),
+    RecoveredToSusceptible(model, r_waning=r_wanings),
     TransmissionSE(model, beta=betas),
 ]
 ```
@@ -124,6 +124,30 @@ model.components = [
 ## Learn more
 
 <div class="grid cards" markdown>
+
+-   :material-cog:{ .lg .middle } __Model__
+
+    ---
+
+    Lifecycle, tick loop, `StateArray` access, carry-forward, and the network matrix.
+
+    [:octicons-arrow-right-24: Model overview](model.md)
+
+-   :material-bacteria:{ .lg .middle } __Components__
+
+    ---
+
+    Compartment, transition, and transmission components; vital dynamics; migration.
+
+    [:octicons-arrow-right-24: Components guide](components.md)
+
+-   :material-calendar-clock:{ .lg .middle } __Campaign & interventions__
+
+    ---
+
+    Schedule syntax, built-in interventions, and writing custom ones.
+
+    [:octicons-arrow-right-24: Campaign guide](campaign.md)
 
 -   :material-api:{ .lg .middle } __API reference__
 
