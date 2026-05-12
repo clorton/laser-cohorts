@@ -91,6 +91,34 @@ class Intervention:
         """
         self.model = model
 
+    @property
+    def states(self) -> list[str]:
+        """Return compartment states required by this intervention.
+
+        Override in subclasses to declare any new states the intervention
+        needs (e.g. ``["V"]`` for a vaccination intervention).  These states
+        are surfaced through ``Campaign.states`` so the model allocates them
+        before the simulation runs.
+
+        Returns:
+            list[str]: Empty list; subclasses override as needed.
+        """
+        return []
+
+    @property
+    def properties(self) -> list[PropertyType]:
+        """Return node properties required by this intervention.
+
+        Override in subclasses to declare per-tick, per-node arrays for
+        recording intervention outputs.  These properties are surfaced through
+        ``Campaign.properties`` so the model allocates them before the
+        simulation runs.
+
+        Returns:
+            list[PropertyType]: Empty list; subclasses override as needed.
+        """
+        return []
+
     def execute(
         self,
         tick: int,
@@ -351,20 +379,52 @@ class Campaign:
 
     @property
     def properties(self) -> "list[PropertyType]":
-        """Return node properties required by this component.
+        """Return node properties required by this component and its interventions.
+
+        Iterates over unique intervention class names in the schedule, instantiates
+        each registered class with the model, and collects their ``properties``
+        declarations.  Deduplicates by value so the same property is not
+        registered twice if multiple schedule entries use the same intervention.
 
         Returns:
-            list[PropertyType]: Empty list; the Campaign declares no node
-                properties itself — individual interventions access the model
-                directly.
+            list[PropertyType]: Union of all property declarations from
+                interventions used in this campaign's schedule.
         """
-        return []
+        seen_classes: set[str] = set()
+        result: list[PropertyType] = []
+        for entry in self._parsed:
+            name = entry["what"]
+            if name in seen_classes or name not in self._registry:
+                continue
+            seen_classes.add(name)
+            intervention = self._registry[name](self.model)
+            for prop in intervention.properties:
+                if prop not in result:
+                    result.append(prop)
+        return result
 
     @property
     def states(self) -> "list[str]":
-        """Return compartment state names required by this component.
+        """Return compartment states required by this component and its interventions.
+
+        Iterates over unique intervention class names in the schedule, instantiates
+        each registered class with the model, and collects their ``states``
+        declarations.  Deduplicates so a state declared by multiple interventions
+        is only included once.
 
         Returns:
-            list[str]: Empty list; the Campaign declares no new states.
+            list[str]: Union of all state declarations from interventions used
+                in this campaign's schedule.
         """
-        return []
+        seen_classes: set[str] = set()
+        result: list[str] = []
+        for entry in self._parsed:
+            name = entry["what"]
+            if name in seen_classes or name not in self._registry:
+                continue
+            seen_classes.add(name)
+            intervention = self._registry[name](self.model)
+            for state in intervention.states:
+                if state not in result:
+                    result.append(state)
+        return result
