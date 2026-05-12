@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed (Migration 3-D routing + vectorised step)
+- `src/laser/cohorts/migration.py`: `routing` parameter promoted from 2-D `(nnodes, nnodes)` to 3-D `(nticks, nnodes, nnodes)`; connectivity can now vary tick-by-tick; static connectivity expressed via `np.broadcast_to(routing_2d[None], (nticks, n, n))` (read-only view, no copy)
+- `Migration.__init__`: normalisation axes updated (`axis=2`); `_emigrates` is now `(nticks, nnodes)` bool; `ValueError` message now suggests `np.broadcast_to` for the 2-D→3-D conversion
+- `Migration.step`: replaced nested `for i, for s` Python loop with a vectorised sequential-binomial decomposition of the multinomial — one `binomial` call per destination column, fully vectorised over `(nstates, nnodes)`; last destination absorbs remainder for exact population conservation; `routing_tick = self._routing[tick]` slices the current tick's routing slice
+- `tests/test_migration.py`: added `static_routing(routing_2d, nticks)` helper that wraps `np.broadcast_to` and is used by all 10 original tests; updated all tests to pass 3-D routing; `test_migration_raises_on_wrong_routing_shape` now also verifies that a plain 2-D array is rejected; added 3 new time-varying tests: routing inactive first-half / active second-half (deterministic), alternating direction each tick (population conserved both ways), and 30-tick period rotation across three directed patterns with active disease (population conserved at every tick); total migration tests: 13
+
+### Added (Migration)
+- `laser.cohorts.Migration` exported from `__init__.py`
+
 ### Added (seasonality and network tests)
 - `tests/test_seasonality.py`: 8 tests covering zero seasonality (no transmission), unit constant matching None default, doubled seasonality increasing infections, step-function first-half zeros, sinusoidal trough (T=364, tick 273), triangle-wave trough (mid-simulation), two-peak annual pattern (four trough zeros over two periods), and extreme 20000× seasonality depleting all susceptibles in the first tick
 - `tests/test_networks.py`: 8 tests covering zero network isolation, full all-to-all connectivity spreading to all nodes, one-directional linear chain, hub-and-spoke two-hop spread, one-directional ring, asymmetric one-way spread with deterministic blocked reverse, symmetric w=0.5 connectivity equalising recovered fractions (within 5pp), and isolated node remaining pristine

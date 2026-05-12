@@ -17,6 +17,7 @@ from .components import RecoveredToSusceptible
 from .components import Susceptible
 from .components import TransmissionSI
 from .components import TransmissionSE
+from .migration import Migration
 from .model import Model
 from .statearray import StateArray
 from .utils import PropertyType
@@ -25,6 +26,7 @@ from .vitaldynamics import NonDiseaseMortality
 
 __all__ = [
     "ConstantPopBirths",
+    "Migration",
     "Exposed",
     "Infectious",
     "InfectiousToRecovered",
