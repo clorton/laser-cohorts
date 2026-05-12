@@ -7,7 +7,7 @@ and compartment states.
 Each entry has six fields:
   - who:        ``"*"`` or list of state names
   - what:       registered intervention class name
-  - when:       ``"*"`` (every tick), integer tick, or ``"YYYY-MM-DD"`` date
+  - when:       ``"*"`` (every tick), integer tick, list of integer ticks, or ``"YYYY-MM-DD"`` date
   - where:      ``"*"``, single integer node ID, or list of node IDs
   - parameters: arbitrary ``{key: value}`` dict
   - notes:      free-text string
@@ -58,10 +58,10 @@ def clear_calls():
 # ---------------------------------------------------------------------------
 
 
-
 # ---------------------------------------------------------------------------
 # Source loading: dict, list, JSON file, CSV file
 # ---------------------------------------------------------------------------
+
 
 def test_single_dict_source_fires_on_specified_tick() -> None:
     """Given a Campaign loaded from a single dict with when=2, when the model
@@ -174,6 +174,7 @@ def test_csv_file_source_loads_correctly(tmp_path: Path) -> None:
 # when field variants
 # ---------------------------------------------------------------------------
 
+
 def test_when_star_fires_every_tick() -> None:
     """Given a single entry with when="*", when the model runs for 4 ticks, then
     the intervention fires on every tick (4 times).
@@ -219,8 +220,7 @@ def test_when_date_fires_on_correct_tick() -> None:
     p = PropertySet({"nticks": nticks, "beta": 0.0, "r_recovery": 0.0})
     model = Model(scenario, p)
     schedule = [
-        {"who": "*", "what": "RecordingIntervention", "when": "2020-02-01",
-         "where": "*", "parameters": {}, "notes": ""},
+        {"who": "*", "what": "RecordingIntervention", "when": "2020-02-01", "where": "*", "parameters": {}, "notes": ""},
     ]
     campaign = Campaign(model, schedule, start_date="2020-01-01")
     betas = ValuesMap.from_scalar(0.0, nticks, n)
@@ -252,9 +252,120 @@ def test_when_no_entries_match_fires_nothing() -> None:
     assert len(_calls) == 0
 
 
+def test_when_list_of_ticks_fires_on_each_tick() -> None:
+    """Given a single entry with when=[1, 3], when the model runs for 5 ticks,
+    then the intervention fires exactly twice: once on tick 1 and once on tick 3.
+
+    A list of integer ticks should produce one firing per listed tick.  Failure
+    means the list is being treated as a single tick, dropped entirely, or fires
+    on the wrong ticks.
+    """
+    schedule = [{"who": "*", "what": "RecordingIntervention", "when": [1, 3], "where": "*", "parameters": {}, "notes": ""}]
+    model = _make_model_with_schedule(schedule, nticks=5)
+    model.run()
+
+    assert len(_calls) == 2
+    assert _calls[0]["tick"] == 1
+    assert _calls[1]["tick"] == 3
+
+
+def test_when_list_only_fires_for_in_range_ticks() -> None:
+    """Given a single entry with when=[2, 10] and nticks=5, when the model runs,
+    then the intervention fires only on tick 2 (tick 10 is never reached).
+
+    Out-of-range ticks in the list are silently skipped because the model simply
+    never executes those ticks.  Failure means the scheduler errors on out-of-range
+    ticks or fires spuriously.
+    """
+    schedule = [{"who": "*", "what": "RecordingIntervention", "when": [2, 10], "where": "*", "parameters": {}, "notes": ""}]
+    model = _make_model_with_schedule(schedule, nticks=5)
+    model.run()
+
+    assert len(_calls) == 1
+    assert _calls[0]["tick"] == 2
+
+
+def test_when_list_preserves_per_tick_who_and_params() -> None:
+    """Given an entry with when=[0, 4], who=["S"], and parameters={"dose": 1},
+    when the model runs for 5 ticks, then both firings receive who=["S"] and
+    params={"dose": 1} unchanged.
+
+    The same entry metadata must be forwarded identically to every tick in the
+    list.  Failure means metadata is mutated between firings or only carried for
+    the first tick.
+    """
+    schedule = [
+        {"who": ["S"], "what": "RecordingIntervention", "when": [0, 4], "where": "*", "parameters": {"dose": 1}, "notes": "booster"}
+    ]
+    model = _make_model_with_schedule(schedule, nticks=5)
+    model.run()
+
+    assert len(_calls) == 2
+    for call in _calls:
+        assert call["who"] == ["S"]
+        assert call["params"] == {"dose": 1}
+        assert call["notes"] == "booster"
+
+
+def test_when_list_of_dates_raises_value_error() -> None:
+    """Given a schedule entry with when=["2020-01-10", "2020-01-20"] (a list of
+    date strings), when the Campaign is constructed, then a ValueError is raised.
+
+    Lists of dates are not supported; only lists of integer ticks are allowed.
+    Failure means the date list is silently accepted, which would produce
+    incorrect tick assignments or unexpected behaviour.
+    """
+    n = 2
+    scenario = grid(M=n, N=1)
+    scenario["S"] = 1000
+    scenario["I"] = 10
+    scenario["R"] = 0
+    p = PropertySet({"nticks": 40, "beta": 0.0, "r_recovery": 0.0})
+    model = Model(scenario, p)
+    schedule = [
+        {"who": "*", "what": "RecordingIntervention", "when": ["2020-01-10", "2020-01-20"], "where": "*", "parameters": {}, "notes": ""},
+    ]
+    with pytest.raises(ValueError, match="date"):
+        Campaign(model, schedule, start_date="2020-01-01")
+
+
+def test_csv_when_as_json_array_fires_on_each_tick(tmp_path: Path) -> None:
+    """Given a CSV schedule where the when column is a JSON array "[1, 3]", when
+    the model runs for 5 ticks, then the intervention fires on ticks 1 and 3.
+
+    CSV does not have a native list type; a JSON array in the when column is the
+    documented encoding.  Failure means the JSON array string is not parsed and
+    the entry is silently dropped or raises an error.
+    """
+    import csv as csv_mod
+
+    csv_path = tmp_path / "schedule.csv"
+    with csv_path.open("w", newline="") as f:
+        writer = csv_mod.DictWriter(f, fieldnames=["who", "what", "when", "where", "parameters", "notes"])
+        writer.writeheader()
+        writer.writerow(
+            {
+                "who": "*",
+                "what": "RecordingIntervention",
+                "when": json.dumps([1, 3]),
+                "where": "*",
+                "parameters": "{}",
+                "notes": "",
+            }
+        )
+
+    model = _make_model_with_schedule(csv_path, nticks=5)
+    model.run()
+
+    assert len(_calls) == 2
+    assert _calls[0]["tick"] == 1
+    assert _calls[1]["tick"] == 3
+
+
 # ---------------------------------------------------------------------------
 # where field variants
 # ---------------------------------------------------------------------------
+
 
 def test_where_star_passes_none_to_intervention() -> None:
     """Given a schedule entry with where="*", when the intervention fires, then
@@ -300,6 +411,7 @@ def test_where_list_passes_through_unchanged() -> None:
 # who field variants
 # ---------------------------------------------------------------------------
 
+
 def test_who_star_passes_none_to_intervention() -> None:
     """Given a schedule entry with who="*", when the intervention fires, then
     the ``who`` argument received by the intervention is None (meaning all states).
@@ -329,6 +441,7 @@ def test_who_list_passes_through_to_intervention() -> None:
 # ---------------------------------------------------------------------------
 # parameters and notes forwarding
 # ---------------------------------------------------------------------------
+
 
 def test_parameters_forwarded_to_intervention() -> None:
     """Given a schedule entry with parameters={"coverage": 0.9, "round": 2}, when
@@ -363,6 +476,7 @@ def test_notes_forwarded_to_intervention() -> None:
 # Multiple interventions on the same tick
 # ---------------------------------------------------------------------------
 
+
 def test_multiple_entries_on_same_tick_all_fire() -> None:
     """Given two schedule entries both with when=2, when the model runs, then
     both interventions fire on tick 2 (in schedule order).
@@ -386,6 +500,7 @@ def test_multiple_entries_on_same_tick_all_fire() -> None:
 # ---------------------------------------------------------------------------
 # Error cases
 # ---------------------------------------------------------------------------
+
 
 def test_unknown_intervention_name_raises_key_error() -> None:
     """Given a schedule entry with what="DoesNotExist" (not registered), when
@@ -467,6 +582,7 @@ def test_unsupported_file_format_raises_value_error() -> None:
 # CSV complex fields: who and where as JSON in CSV
 # ---------------------------------------------------------------------------
 
+
 def test_csv_where_as_json_list(tmp_path: Path) -> None:
     """Given a CSV schedule with where="[0]" (a JSON list in the CSV field),
     when the intervention fires, then where received is [0].
@@ -474,10 +590,7 @@ def test_csv_where_as_json_list(tmp_path: Path) -> None:
     Failure means the JSON list in the CSV where column is left as a raw string
     rather than parsed.
     """
-    csv_content = (
-        "who,what,when,where,parameters,notes\n"
-        '*,RecordingIntervention,0,"[0]","{}",\n'
-    )
+    csv_content = 'who,what,when,where,parameters,notes\n*,RecordingIntervention,0,"[0]","{}",\n'
     csv_path = tmp_path / "schedule.csv"
     csv_path.write_text(csv_content)
 
@@ -493,24 +606,23 @@ def test_csv_who_as_json_list(tmp_path: Path) -> None:
 
     Failure means the JSON list in the CSV who column is left as a raw string.
     """
-    csv_content = (
-        "who,what,when,where,parameters,notes\n"
-        '"""[""S""]"",RecordingIntervention,0,*,"{}",\n'
-    )
     # Use an alternate approach: write via json.dumps to avoid escaping issues
     import csv as csv_mod
+
     csv_path = tmp_path / "schedule.csv"
     with csv_path.open("w", newline="") as f:
         writer = csv_mod.DictWriter(f, fieldnames=["who", "what", "when", "where", "parameters", "notes"])
         writer.writeheader()
-        writer.writerow({
-            "who": json.dumps(["S"]),
-            "what": "RecordingIntervention",
-            "when": 0,
-            "where": "*",
-            "parameters": "{}",
-            "notes": "",
-        })
+        writer.writerow(
+            {
+                "who": json.dumps(["S"]),
+                "what": "RecordingIntervention",
+                "when": 0,
+                "where": "*",
+                "parameters": "{}",
+                "notes": "",
+            }
+        )
 
     model = _make_model_with_schedule(csv_path, nticks=3)
     model.run()

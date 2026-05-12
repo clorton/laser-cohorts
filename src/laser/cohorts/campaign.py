@@ -8,7 +8,7 @@ Each schedule entry specifies:
 
 - **who**: ``"*"`` (all states) or a list of state names, e.g. ``["S", "R"]``
 - **what**: name of the registered intervention class
-- **when**: ``"*"`` (every tick), an integer tick, or a ``"YYYY-MM-DD"`` date
+- **when**: ``"*"`` (every tick), an integer tick, a list of integer ticks, or a ``"YYYY-MM-DD"`` date
 - **where**: ``"*"`` (all nodes), a single node ID, or a list of node IDs
 - **parameters**: arbitrary ``{key: value}`` pairs forwarded to the intervention
 - **notes**: free-text string forwarded to the intervention
@@ -16,6 +16,8 @@ Each schedule entry specifies:
 Date-based ``when`` values require a ``start_date`` argument on the Campaign.
 Integer ticks and date strings cannot be mixed in the same schedule.
 """
+
+from __future__ import annotations
 
 import csv
 import json
@@ -122,10 +124,12 @@ class Campaign:
     ``Campaign.register`` and looked up by name at each tick.
 
     Example:
-        >>> Campaign.register("Vaccination", Vaccination)
+        >>> Campaign.register(Vaccination)
         >>> schedule = [
         ...     {"who": "*", "what": "Vaccination", "when": 30,
         ...      "where": [0, 1], "parameters": {"coverage": 0.8}, "notes": ""},
+        ...     {"who": ["S"], "what": "Vaccination", "when": [60, 90, 120],
+        ...      "where": "*", "parameters": {"coverage": 0.6}, "notes": "boosters"},
         ... ]
         >>> campaign = Campaign(model, schedule)
         >>> model.components = [..., campaign]
@@ -135,11 +139,11 @@ class Campaign:
 
     @classmethod
     def register(cls, intervention_cls: type) -> None:
-        """Register an intervention class under a name.
+        """Register an intervention class using its ``__name__`` as the schedule key.
 
         Args:
-            name (str): Name used in ``what`` fields of schedule entries.
             intervention_cls (type): Subclass of ``Intervention`` to register.
+                The class name becomes the value expected in ``what`` fields.
         """
         name = intervention_cls.__name__
         logger.info("Campaign: registering intervention '%s'", name)
@@ -171,6 +175,7 @@ class Campaign:
         Raises:
             ValueError: If the source path has an unsupported suffix.
             ValueError: If ``when`` values mix integer ticks and date strings.
+            ValueError: If a list ``when`` contains date strings (unsupported).
             ValueError: If date-valued ``when`` entries are present but
                 ``start_date`` is not provided.
         """
@@ -221,7 +226,10 @@ class Campaign:
 
                 raw_when = entry.get("when", "*").strip()
                 if raw_when != "*" and not _is_date_string(raw_when):
-                    entry["when"] = int(raw_when)
+                    if raw_when.startswith("["):
+                        entry["when"] = json.loads(raw_when)
+                    else:
+                        entry["when"] = int(raw_when)
 
                 entries.append(entry)
         return entries
@@ -231,50 +239,45 @@ class Campaign:
     # ------------------------------------------------------------------
 
     def _parse_entries(self, raw: "list[dict]") -> "list[dict]":
-        has_dates = any(
-            isinstance(e.get("when"), str) and e["when"] != "*" and _is_date_string(e["when"])
-            for e in raw
-        )
+        has_dates = any(isinstance(e.get("when"), str) and e["when"] != "*" and _is_date_string(e["when"]) for e in raw)
         has_int_ticks = any(
-            isinstance(e.get("when"), int) or (
-                isinstance(e.get("when"), str)
-                and e["when"] != "*"
-                and not _is_date_string(e["when"])
-            )
+            isinstance(e.get("when"), int)
+            or isinstance(e.get("when"), list)
+            or (isinstance(e.get("when"), str) and e["when"] != "*" and not _is_date_string(e["when"]))
             for e in raw
         )
 
         if has_dates and has_int_ticks:
-            raise ValueError(
-                "Campaign schedule mixes date strings and integer ticks in 'when'. "
-                "Use either dates or integers consistently."
-            )
+            raise ValueError("Campaign schedule mixes date strings and integer ticks in 'when'. Use either dates or integers consistently.")
         if has_dates and self._start_date is None:
-            raise ValueError(
-                "Campaign has date-valued 'when' entries but start_date was not provided."
-            )
+            raise ValueError("Campaign has date-valued 'when' entries but start_date was not provided.")
 
         parsed = []
         for entry in raw:
             when = entry.get("when", "*")
-            if when == "*":
-                tick = None
-            elif isinstance(when, int):
-                tick = when
-            elif _is_date_string(str(when)):
-                d = _parse_date(when)
-                tick = (d - self._start_date).days
-            else:
-                tick = int(when)
-
-            parsed.append({
+            base = {
                 "what": entry["what"],
                 "who": _normalize_who(entry.get("who", "*")),
                 "where": _normalize_where(entry.get("where", "*")),
-                "tick": tick,
                 "params": entry.get("parameters", {}),
                 "notes": str(entry.get("notes", "")),
-            })
+            }
+
+            if when == "*":
+                parsed.append({**base, "tick": None})
+            elif isinstance(when, list):
+                for t in when:
+                    if isinstance(t, str) and _is_date_string(t):
+                        raise ValueError("List of date strings in 'when' is not supported. Use a list of integer ticks instead.")
+                    parsed.append({**base, "tick": int(t)})
+            elif isinstance(when, int):
+                parsed.append({**base, "tick": when})
+            elif _is_date_string(str(when)):
+                d = _parse_date(when)
+                parsed.append({**base, "tick": (d - self._start_date).days})
+            else:
+                parsed.append({**base, "tick": int(when)})
+
         return parsed
 
     # ------------------------------------------------------------------
@@ -319,13 +322,15 @@ class Campaign:
             name = entry["what"]
             if name not in self._registry:
                 raise KeyError(
-                    f"Intervention '{name}' is not registered. "
-                    f"Call Campaign.register('{name}', <class>) before running."
+                    f"Intervention '{name}' is not registered. Call Campaign.register(<class>) where <class>.__name__ == '{name}'."
                 )
             cls = self._registry[name]
             logger.info(
                 "Campaign tick %d: dispatching '%s' who=%s where=%s",
-                tick, name, entry["who"], entry["where"],
+                tick,
+                name,
+                entry["who"],
+                entry["where"],
             )
             intervention = cls(self.model)
             intervention.execute(

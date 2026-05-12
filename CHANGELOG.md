@@ -4,12 +4,13 @@
 
 ### Added (Campaign)
 - `src/laser/cohorts/campaign.py`: implemented `Campaign` component and `Intervention` base class; `Campaign` loads a schedule from a `dict`, `list[dict]`, `.json` file, or `.csv` file and dispatches registered intervention classes at the specified ticks, nodes, and compartment states
-- Schedule entry fields: `who` (`"*"` or list of state names), `what` (registered class name), `when` (`"*"` every tick, integer tick, or `"YYYY-MM-DD"` date), `where` (`"*"`, single node ID, or list of node IDs), `parameters` (arbitrary key:value dict), `notes` (free-text string)
-- Date-based `when` values require a `start_date` constructor argument; integer ticks and date strings cannot be mixed in the same schedule (raises `ValueError`)
-- `Campaign.register(name, cls)` classmethod registers `Intervention` subclasses by name; unknown names raise `KeyError` when the scheduled tick fires
-- CSV `parameters`, `who` (list), and `where` (list) columns accept JSON-encoded strings
+- Schedule entry fields: `who` (`"*"` or list of state names), `what` (registered class name), `when` (`"*"` every tick, integer tick, **list of integer ticks**, or `"YYYY-MM-DD"` date), `where` (`"*"`, single node ID, or list of node IDs), `parameters` (arbitrary key:value dict), `notes` (free-text string)
+- A list `when` such as `[30, 60, 90]` expands into one firing per listed tick; out-of-range ticks are silently skipped; list of date strings raises `ValueError`
+- Date-based `when` values require a `start_date` constructor argument; integer ticks / tick-lists and date strings cannot be mixed in the same schedule (raises `ValueError`)
+- `Campaign.register(cls)` classmethod registers `Intervention` subclasses using `cls.__name__` as the key; unknown names raise `KeyError` when the scheduled tick fires
+- CSV `parameters`, `who` (list), `where` (list), and `when` (list) columns accept JSON-encoded strings/arrays
 - `laser.cohorts.Campaign` and `laser.cohorts.Intervention` exported from `__init__.py`
-- `tests/test_campaign.py`: 22 tests covering dict/list/JSON/CSV sources, `when="*"` (every tick), integer and date `when`, `where` normalization (`"*"`/int/list → None/[int]/list), `who` normalization, parameters and notes forwarding, multiple entries on the same tick, unknown class name `KeyError`, mixed date/tick `ValueError`, missing `start_date` `ValueError`, unsupported file format `ValueError`, and CSV JSON-list parsing for `who` and `where`
+- `tests/test_campaign.py`: 27 tests covering dict/list/JSON/CSV sources, `when="*"` (every tick), integer, list-of-ticks (full and partially out-of-range), and date `when`, CSV JSON array `when`, metadata forwarding across list firings, list-of-dates `ValueError`, `where`/`who` normalization, parameters/notes forwarding, multiple same-tick entries, unknown class name `KeyError`, mixed date/tick `ValueError`, missing `start_date` `ValueError`, unsupported file format `ValueError`
 
 ### Changed (Migration 3-D routing + vectorised step)
 - `src/laser/cohorts/migration.py`: `routing` parameter promoted from 2-D `(nnodes, nnodes)` to 3-D `(nticks, nnodes, nnodes)`; connectivity can now vary tick-by-tick; static connectivity expressed via `np.broadcast_to(routing_2d[None], (nticks, n, n))` (read-only view, no copy)
