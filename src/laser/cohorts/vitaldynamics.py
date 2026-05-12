@@ -64,16 +64,14 @@ class NonDiseaseMortality:
         boolean mask over the state axis using ``get_state_index`` so that
         ``step`` can select all target states in one vectorised operation.
         """
-        all_names = self.model.states.state_names or ()
-        if self._requested_states is None:
+        # None means all and all means all
+        if (self._requested_states is None) or (set(self._requested_states) == set(self.model.states.state_names)):
             mask = slice(None)  # equivalent to `:`
         else:
-            mask = np.zeros(len(all_names), dtype=bool)
-            for name in self._requested_states:
-                idx = self.model.states.get_state_index(name)
-                if idx is not None:
-                    mask[idx] = True
+            mask = self.model.states.get_state_mask(list(self._requested_states))
         self._state_mask = mask
+
+        return
 
     def start_step(self, tick: int) -> None:
         """No-op start-of-step hook.

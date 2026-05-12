@@ -1,6 +1,5 @@
 """Core Model class for cohort-based compartmental disease simulation."""
 
-import warnings
 from collections.abc import Iterable
 from typing import Optional
 
@@ -44,7 +43,8 @@ class Model:
             carry_forward_states (Iterable[str] | None): Names of compartment states to
                 carry forward at the start of each tick.  ``None`` (default) carries
                 forward every state.  Pass an explicit iterable to restrict carry-forward
-                to a subset.
+                to a subset.  Unknown state names raise ``ValueError`` when
+                ``components`` is assigned.
         """
         self.scenario = scenario
         self.params = params
@@ -75,6 +75,10 @@ class Model:
 
         Args:
             proposal (list): Ordered list of component instances to register.
+
+        Raises:
+            ValueError: If any name in ``carry_forward_states`` is not a
+                registered state in the assembled component list.
         """
         self._components = proposal
 
@@ -94,19 +98,9 @@ class Model:
         for name, count, dtype, default in properties:
             self.nodes.add_array_property(name, shape=(self.params.nticks, len(self.scenario)), dtype=dtype, default=default)
 
-        if self._carry_forward_states is not None:
-            all_names = self.states.state_names or ()
-            mask = np.zeros(len(all_names), dtype=bool)
-            for name in self._carry_forward_states:
-                idx = self.states.get_state_index(name)
-                if idx is not None:
-                    mask[idx] = True
-                else:
-                    warnings.warn(
-                        f"carry_forward_states: '{name}' is not a registered state and will be ignored.",
-                        UserWarning,
-                        stacklevel=3,
-                    )
+        # if carry forward states is a subset of the states ...
+        if (self._carry_forward_states is not None) and (set(self._carry_forward_states) != set(self.states.state_names)):
+            mask = self.states.get_state_mask(list(self._carry_forward_states))
             self._carry_mask = mask
 
         for component in self.components:

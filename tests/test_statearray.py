@@ -1467,5 +1467,195 @@ class TestConstructionPaths:
         return
 
 
+class TestGetStateMask:
+    """Boolean mask generation for a subset of named state compartments."""
+
+    def test_single_string_sets_one_position_true(self) -> None:
+        """Given an SEIR StateArray and the string "I", when get_state_mask("I")
+        is called, then the result is a boolean array with True only at position 2.
+
+        Failure means a bare string is not normalised to a single-element list,
+        or the wrong index is set.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask("S")
+
+        # then
+        expected = np.array([True, False, False, False, False, False])
+        assert mask.dtype == bool
+        assert np.array_equal(mask, expected)
+
+        return
+
+    def test_list_of_one_sets_one_position_true(self) -> None:
+        """Given a StateArray and ["R"], when get_state_mask(["R"]) is called,
+        then the result has True only at the index of R (position 3).
+
+        Verifies that a single-element list produces the same result as the bare
+        string form; failure indicates the list path is broken.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask(["R"])
+
+        # then
+        expected = np.array([False, False, False, True, False, False])
+        assert np.array_equal(mask, expected)
+
+        return
+
+    def test_list_of_multiple_sets_correct_positions(self) -> None:
+        """Given a StateArray with NAMES=["S","E","I","R","V","M"] and the list
+        ["S", "R"], when get_state_mask is called, then True appears at indices
+        0 and 3 only.
+
+        Failure means multi-element lists are not all applied, or the index
+        lookup returns wrong positions.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask(["S", "R"])
+
+        # then
+        expected = np.array([True, False, False, True, False, False])
+        assert np.array_equal(mask, expected)
+
+        return
+
+    def test_all_states_returns_all_true_mask(self) -> None:
+        """Given a StateArray and a list of all registered state names, when
+        get_state_mask is called, then every position in the mask is True.
+
+        Failure means some states are not found or not set, which would silently
+        exclude compartments from an intended all-state operation.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask(list(NAMES))
+
+        # then
+        assert mask.all()
+        assert len(mask) == NUM_STATES
+
+        return
+
+    def test_empty_list_returns_all_false_mask(self) -> None:
+        """Given a StateArray and an empty list, when get_state_mask([]) is called,
+        then every position in the mask is False.
+
+        An empty request is a valid edge case (no states selected) and must not
+        raise an error or return a non-empty array.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask([])
+
+        # then
+        assert not mask.any()
+        assert len(mask) == NUM_STATES
+
+        return
+
+    def test_mask_length_equals_number_of_states(self) -> None:
+        """Given any valid StateArray, when get_state_mask is called, then the
+        returned mask has exactly as many elements as there are registered states.
+
+        Failure means the mask is sized incorrectly and cannot be used as a
+        direct boolean index along the state axis.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask("E")
+
+        # then
+        assert len(mask) == NUM_STATES
+
+        return
+
+    def test_unknown_state_name_raises_value_error(self) -> None:
+        """Given a StateArray and an unregistered state name "Z", when
+        get_state_mask("Z") is called, then a ValueError is raised.
+
+        Unknown names must not silently produce a False entry; they indicate a
+        typo or misconfiguration that should be caught immediately.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when / then
+        with pytest.raises(ValueError, match="Z"):
+            sa.get_state_mask("Z")
+
+        return
+
+    def test_unknown_name_in_list_raises_value_error(self) -> None:
+        """Given a list where one entry is valid ("S") and one is unknown ("Z"),
+        when get_state_mask(["S", "Z"]) is called, then a ValueError is raised.
+
+        A single bad name in a list must not silently skip the unknown entry and
+        return a partial mask.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when / then
+        with pytest.raises(ValueError, match="Z"):
+            sa.get_state_mask(["S", "Z"])
+
+        return
+
+    def test_non_list_non_string_input_raises_value_error(self) -> None:
+        """Given a StateArray, when get_state_mask is called with a tuple instead
+        of a string or list, then a ValueError is raised.
+
+        # Exercises a bug-fix: the original implementation referenced the undefined
+        # variable `state` (instead of `states`) in the type-check error message,
+        # which would raise NameError rather than the intended ValueError.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when / then
+        with pytest.raises(ValueError, match="must be a string or list"):
+            sa.get_state_mask(("S", "I"))  # tuple, not list
+
+        return
+
+    def test_mask_selects_correct_rows_when_used_as_index(self) -> None:
+        """Given a StateArray where each state row is filled with a distinct value,
+        when get_state_mask(["S", "R"]) is used to index the array, then only the
+        S and R rows are selected.
+
+        Verifies that the mask integrates correctly with NumPy boolean indexing
+        along the state axis—the primary use case for get_state_mask.
+        """
+        # given
+        sa = StateArray(NAMES, 0, source_array=np.arange(NUM_STATES * NUM_PATCHES, dtype=np.int64).reshape(NUM_STATES, NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask(["S", "R"])
+        selected = sa.view(np.ndarray)[mask]
+
+        # then — S is row 0, R is row 3
+        assert selected.shape == (2, NUM_PATCHES)
+        assert np.array_equal(selected[0], sa.view(np.ndarray)[0])
+        assert np.array_equal(selected[1], sa.view(np.ndarray)[3])
+
+        return
+
+
 if __name__ == "__main__":
     pytest.main()

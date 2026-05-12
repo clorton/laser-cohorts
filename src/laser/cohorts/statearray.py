@@ -252,3 +252,48 @@ class StateArray(np.ndarray):
                 ``None`` if `name` is not registered or state metadata is absent.
         """
         return self._state_names.index(name) if (self._state_names is not None) and (name in self._state_names) else None
+
+    def get_state_mask(self, states: str | list[str]) -> np.ndarray:
+        """Return a boolean mask selecting the specified state compartments.
+
+        The returned array has length equal to the number of registered states
+        and is ``True`` at each position corresponding to a named state in
+        ``states``.  Useful for vectorised operations that apply to a subset
+        of compartments (e.g. mortality restricted to ``["S", "I"]``).
+
+        Args:
+            states (str | list[str]): A single state name or a list of state
+                names to include in the mask.
+
+        Returns:
+            np.ndarray: Boolean array of length ``n_states`` (the size of the
+                state axis) with ``True`` at each index corresponding to a
+                state in ``states`` and ``False`` elsewhere.
+
+        Raises:
+            ValueError: If ``states`` is neither a string nor a list.
+            ValueError: If any name in ``states`` is not a registered state.
+
+        Example:
+            >>> sa = StateArray(["S", "I", "R"], 0, shape=(3, 10))
+            >>> sa.get_state_mask("S")
+            array([ True, False, False])
+            >>> sa.get_state_mask(["S", "R"])
+            array([ True, False,  True])
+        """
+        if isinstance(states, str):
+            states = [states]
+
+        if not isinstance(states, list):
+            raise ValueError(f"'states' must be a string or list of strings, got {type(states)}")
+
+        mask = np.zeros(self.shape[self.state_axis], dtype=bool)
+
+        for state in states:
+            idx = self.get_state_index(state)
+            if idx is not None:
+                mask[idx] = True
+            else:
+                raise ValueError(f"'{state}' is not a valid state for this StateArray, must be one of {self._state_names}")
+
+        return mask

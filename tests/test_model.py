@@ -5,9 +5,8 @@ each simulation step.  By default every state is carried forward; passing
 ``carry_forward_states`` restricts carry-forward to a named subset.
 """
 
-import warnings
-
 import numpy as np
+import pytest
 
 from laser.core import PropertySet
 from laser.core.utils import grid
@@ -99,22 +98,17 @@ def test_carry_forward_happens_before_component_step() -> None:
     assert np.all(model.states.S[1] == model.states.S[0])
 
 
-def test_carry_forward_unknown_state_name_emits_warning() -> None:
+def test_carry_forward_unknown_state_name_raises_value_error() -> None:
     """Given carry_forward_states=['S', 'UNKNOWN'], when components are assigned,
-    then a UserWarning is emitted for 'UNKNOWN' and S is still carried correctly.
+    then a ValueError is raised containing the unknown name.
 
-    Failure implies unknown state names are silently ignored rather than flagged,
-    making it harder to catch typos in carry_forward_states.
+    Unknown state names are a configuration error (likely a typo) and must be
+    caught immediately rather than silently ignored.  Failure implies the check
+    is missing and the mistake goes undetected.
     """
     scenario = grid(M=1, N=1)
     scenario["S"] = 800
     params = PropertySet({"nticks": 1})
     model = Model(scenario, params, carry_forward_states=["S", "UNKNOWN"])
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
+    with pytest.raises(ValueError, match="UNKNOWN"):
         model.components = [Susceptible(model)]
-    assert len(caught) == 1
-    assert issubclass(caught[0].category, UserWarning)
-    assert "UNKNOWN" in str(caught[0].message)
-    model.run()
-    assert np.all(model.states.S[-1] == 800)

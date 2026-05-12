@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Changed (Model carry_forward_states uses get_state_mask)
+- `src/laser/cohorts/model.py` `Model.components` setter: replaced manual mask-building loop with `StateArray.get_state_mask()`; unknown state names in `carry_forward_states` now raise `ValueError` immediately instead of emitting a `UserWarning` and continuing
+- `src/laser/cohorts/model.py`: removed now-unused `import warnings`
+- `src/laser/cohorts/model.py`: updated `__init__` and `components` setter docstrings to document `ValueError` on unknown state names
+- `tests/test_model.py`: renamed `test_carry_forward_unknown_state_name_emits_warning` → `test_carry_forward_unknown_state_name_raises_value_error`; replaced `warnings.catch_warnings` assertion with `pytest.raises(ValueError)`; removed `import warnings`
+
+### Fixed (StateArray.get_state_mask)
+- `src/laser/cohorts/statearray.py` `get_state_mask`: fixed `NameError` bug where the type-check error message referenced the undefined variable `state` instead of `states`; passing a non-str, non-list argument (e.g. a tuple) now raises `ValueError` as intended
+- `get_state_mask`: added Google-style docstring with Args, Returns, Raises, and executable Example
+- `tests/test_statearray.py` `TestGetStateMask`: 10 new tests covering single-string input, list-of-one, list-of-multiple, all-states (all True), empty list (all False), mask length, unknown name `ValueError`, unknown name in list `ValueError`, non-list/non-str input `ValueError` (the bug-fix path), and NumPy boolean indexing integration
+
+### Added (Vaccination intervention)
+- `src/laser/cohorts/interventions/vaccination.py`: implemented `Vaccination` intervention; reads `coverage` from `params` (default `0.0`, must be in `[0, 1]`); applies binomial draw to each targeted state in each targeted node and moves drawn individuals into the V compartment; accumulates per-node counts in the `newly_vaccinated` node property; raises `ValueError` if coverage is outside `[0, 1]`
+- `Intervention` base class extended with `states` (default `[]`) and `properties` (default `[]`) instance properties; `Campaign.states` and `Campaign.properties` aggregate these across all unique intervention classes referenced in the schedule
+- `src/laser/cohorts/interventions/__init__.py`: created with `Vaccination` export
+- `tests/test_vaccination.py`: 15 tests covering `Vaccination.states`/`properties` declarations, `Campaign.states`/`Campaign.properties` aggregation, coverage=0 deterministic (nobody vaccinated), coverage=1 deterministic (all targeted), invalid coverage `ValueError`, `who` list restriction to named states, `who=None` targeting all states, `where` list restriction to named nodes, `where=None` targeting all nodes, `newly_vaccinated` count recording, `newly_vaccinated` zero on unscheduled ticks, population conservation (binomial draw), and V carry-forward across ticks
+
 ### Added (Campaign)
 - `src/laser/cohorts/campaign.py`: implemented `Campaign` component and `Intervention` base class; `Campaign` loads a schedule from a `dict`, `list[dict]`, `.json` file, or `.csv` file and dispatches registered intervention classes at the specified ticks, nodes, and compartment states
 - Schedule entry fields: `who` (`"*"` or list of state names), `what` (registered class name), `when` (`"*"` every tick, integer tick, **list of integer ticks**, or `"YYYY-MM-DD"` date), `where` (`"*"`, single node ID, or list of node IDs), `parameters` (arbitrary key:value dict), `notes` (free-text string)
