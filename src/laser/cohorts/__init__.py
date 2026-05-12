@@ -8,6 +8,8 @@ from importlib.metadata import version
 
 __version__ = version("laser.cohorts")
 
+from .campaign import Campaign
+from .campaign import Intervention
 from .components import Exposed
 from .components import Infectious
 from .components import InfectiousToRecovered
@@ -25,7 +27,9 @@ from .vitaldynamics import ConstantPopBirths
 from .vitaldynamics import NonDiseaseMortality
 
 __all__ = [
+    "Campaign",
     "ConstantPopBirths",
+    "Intervention",
     "Migration",
     "Exposed",
     "Infectious",

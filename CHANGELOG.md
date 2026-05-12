@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added (Campaign)
+- `src/laser/cohorts/campaign.py`: implemented `Campaign` component and `Intervention` base class; `Campaign` loads a schedule from a `dict`, `list[dict]`, `.json` file, or `.csv` file and dispatches registered intervention classes at the specified ticks, nodes, and compartment states
+- Schedule entry fields: `who` (`"*"` or list of state names), `what` (registered class name), `when` (`"*"` every tick, integer tick, or `"YYYY-MM-DD"` date), `where` (`"*"`, single node ID, or list of node IDs), `parameters` (arbitrary key:value dict), `notes` (free-text string)
+- Date-based `when` values require a `start_date` constructor argument; integer ticks and date strings cannot be mixed in the same schedule (raises `ValueError`)
+- `Campaign.register(name, cls)` classmethod registers `Intervention` subclasses by name; unknown names raise `KeyError` when the scheduled tick fires
+- CSV `parameters`, `who` (list), and `where` (list) columns accept JSON-encoded strings
+- `laser.cohorts.Campaign` and `laser.cohorts.Intervention` exported from `__init__.py`
+- `tests/test_campaign.py`: 22 tests covering dict/list/JSON/CSV sources, `when="*"` (every tick), integer and date `when`, `where` normalization (`"*"`/int/list → None/[int]/list), `who` normalization, parameters and notes forwarding, multiple entries on the same tick, unknown class name `KeyError`, mixed date/tick `ValueError`, missing `start_date` `ValueError`, unsupported file format `ValueError`, and CSV JSON-list parsing for `who` and `where`
+
 ### Changed (Migration 3-D routing + vectorised step)
 - `src/laser/cohorts/migration.py`: `routing` parameter promoted from 2-D `(nnodes, nnodes)` to 3-D `(nticks, nnodes, nnodes)`; connectivity can now vary tick-by-tick; static connectivity expressed via `np.broadcast_to(routing_2d[None], (nticks, n, n))` (read-only view, no copy)
 - `Migration.__init__`: normalisation axes updated (`axis=2`); `_emigrates` is now `(nticks, nnodes)` bool; `ValueError` message now suggests `np.broadcast_to` for the 2-D→3-D conversion
