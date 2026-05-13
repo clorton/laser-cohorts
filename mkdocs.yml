@@ -35,6 +35,23 @@ nav:
   - Model: model.md
   - Components: components.md
   - Campaign & interventions: campaign.md
+  - Tutorials:
+    - SI logistic growth: notebooks/nb_01_si_logistic_growth.ipynb
+    - SIS logistic growth: notebooks/nb_02_sis_logistic_growth.ipynb
+    - SIR outbreak size: notebooks/nb_03_sir_outbreak_size.ipynb
+    - SI vital dynamics: notebooks/nb_04_si_vital_dynamics.ipynb
+    - SIR natural periodicity: notebooks/nb_05_sir_natural_periodicity.ipynb
+    - Mortality validation: notebooks/nb_06_mortality.ipynb
+    - Constant-population births: notebooks/nb_07_constant_pop.ipynb
+    - Births with varying CBR: notebooks/nb_08_births_varying_cbr.ipynb
+    - Seasonality: notebooks/nb_09_seasonality.ipynb
+    - Two-patch spatial correlation: notebooks/nb_10_two_patch_correlation.ipynb
+    - Rabies 1D diffusion: notebooks/nb_11_rabies_1d_diffusion.ipynb
+    - Critical community size: notebooks/nb_12_ccs.ipynb
+    - Age at first infection: notebooks/nb_13_age_at_infection.ipynb
+    - Routine immunization: notebooks/nb_14_routine_immunization.ipynb
+    - England & Wales spatial SEIR model: notebooks/nb_15_england_wales_model.ipynb
+    - England & Wales analysis: notebooks/nb_16_ew_analysis.ipynb
   - API reference: reference/
 
 

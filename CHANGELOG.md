@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Changed (nb_15 gravity model)
+- `docs/notebooks/nb_15_england_wales_model.ipynb`: replaced manual gravity calculation with `laser.core.migration.gravity(pops, distances, k, a, b, c)`; removed manual `d_safe` div-by-zero guard and `np.fill_diagonal` call (handled internally by the library)
+
+### Added (notebooks 15–16 — England & Wales spatial measles)
+- `docs/notebooks/nb_15_england_wales_model.ipynb`: Spatial SEIR model for measles in England and Wales (1944–1964) — 954-node gravity-coupled model with seasonal forcing, vital dynamics, and external importation; saves simulated incidence, populations, and placenames to `data/` for use by nb_16
+- `docs/notebooks/nb_16_ew_analysis.ipynb`: Analysis notebook — loads nb_15 outputs and compares simulated vs. observed fadeout proportions (fraction of bi-weekly periods with zero cases) as a function of city population; time-series comparison for selected cities; geographic map of persistence; summary of model strengths and limitations
+- `mkdocs.yml`: added "England & Wales spatial SEIR model" (nb_15) and "England & Wales analysis" (nb_16) to the Tutorials nav after nb_14
+
+### Added (tutorials nav and notebooks 01-03, 09)
+- `mkdocs.yml`: added Tutorials section to nav with entries for all 14 notebooks
+- `docs/notebooks/nb_01_si_logistic_growth.ipynb`: SI logistic growth (no vital dynamics) — verifies S+I=N, fits logistic curve with scipy.optimize.curve_fit, asserts β recovery within 5%
+- `docs/notebooks/nb_02_sis_logistic_growth.ipynb`: SIS logistic growth (no vital dynamics) — shows endemic equilibrium I* = N(1 − γ/β) and extinction when R₀ < 1
+- `docs/notebooks/nb_03_sir_outbreak_size.ipynb`: SIR outbreak size (Kermack–McKendrick) — solves final-size equation with brentq, sweeps R₀ values, scatter of expected vs. observed attack rate
+- `docs/notebooks/nb_09_seasonality.ipynb`: Seasonality — SIR + vital dynamics with β(t) = β₀(1 + ε·cos(2πt/365)); compares sustained forced oscillations vs. damped unforced oscillations
+
+### Added (notebooks 10–14)
+- `docs/notebooks/nb_10_two_patch_correlation.ipynb`: Two-patch SIR spatial correlation (Keeling & Rohani 2002) — sweeps migration σ over 100 log-spaced values, computes post-burn Pearson correlation, fits C(σ) = σ/(ξ+σ) with scipy curve_fit to recover ξ
+- `docs/notebooks/nb_11_rabies_1d_diffusion.ipynb`: Rabies 1D spatial diffusion traveling wave — 101-node nearest-neighbour SI chain seeded at node 50; spatiotemporal heatmap and measured vs. theoretical wavespeed c = 2√(D·r)
+- `docs/notebooks/nb_12_ccs.ipynb`: Critical Community Size (CCS) — sweeps N from 10³ to 10⁶ with 50 replicates each; measures persistence fraction; plots inflection point vs. theoretical I*/N = 1 heuristic
+- `docs/notebooks/nb_13_age_at_infection.ipynb`: Age at first infection — endemic SIR with vital dynamics; extracts newly_infectious node property; computes force of infection λ* and mean age A = 1/λ*; discusses cohort-model limitation
+- `docs/notebooks/nb_14_routine_immunization.ipynb`: Routine immunization — SEIR + vital dynamics; three coverage scenarios (0, 0.5, 0.8) using built-in Vaccination intervention; compares I(t) time series and cumulative infections; notes limitation of no age structure
+
+### Added (notebooks 4–8)
+- `docs/notebooks/nb_04_si_vital_dynamics.ipynb`: SI model with vital dynamics — validates endemic equilibrium I* = N(1 − μ/β) and N(t) stability with NonDiseaseMortality + ConstantPopBirths
+- `docs/notebooks/nb_05_sir_natural_periodicity.ipynb`: SIR natural periodicity and disease importation — demonstrates sustained oscillations with annual importation vs. damped oscillations without; computes theoretical period T = 2π/ω
+- `docs/notebooks/nb_06_mortality.ipynb`: NonDiseaseMortality validation — 10 replicates × 4 CDR values (2, 10, 20, 40 per 1000/yr); confirms observed CDR matches input within ±0.5
+- `docs/notebooks/nb_07_constant_pop.ipynb`: ConstantPopBirths validation on a 5×5 spatial grid (25 nodes); confirms N_total(t) stays within 1% of initial value over 10 years
+- `docs/notebooks/nb_08_births_varying_cbr.ipynb`: three birth/death balance scenarios (constant CBR, two-node per-node CBR, declining CBR) with β = 0; demonstrates population stability and decline when births fall below deaths
+
 ### Added (documentation)
 - `docs/model.md`: new page covering the Model lifecycle (construct → assign components → run), the tick loop order (carry-forward then start_step/step/end_step), `StateArray` access patterns, `carry_forward_states`, and `model.network`
 - `docs/components.md`: new page covering the component protocol, all compartment/transition/transmission components with parameter names, rate-to-probability conversion, `ValuesMap` usage, seasonality, `NonDiseaseMortality`, `ConstantPopBirths`, and `Migration`
