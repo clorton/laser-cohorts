@@ -192,6 +192,9 @@ def _normalize_when(raw, start_date: date | None = None) -> list[int] | None:
     if raw == "*":
         return None
 
+    if TYPE_CHECKING:
+        assert start_date is not None
+
     items = raw if isinstance(raw, list) else [raw]
 
     result: list[int] = []
@@ -522,17 +525,17 @@ class Campaign:
         any_date = any(_has_date(w) for w in whens)
         any_int = any(_has_int(w) for w in whens)
 
-        if any_date and any_int:
-            raise ValueError(
-                "Campaign schedule mixes date strings and integer ticks in 'when'. "
-                "Use either dates or integers consistently."
-            )
-        if any_date and self._start_date is None:
-            raise ValueError(
-                "Campaign has date-valued 'when' entries but start_date was not provided."
-            )
-
         if any_date:
+            if any_int:
+                raise ValueError(
+                    "Campaign schedule mixes date strings and integer ticks in 'when'. "
+                    "Use either dates or integers consistently."
+                )
+            if self._start_date is None:
+                raise ValueError(
+                    "Campaign has date-valued 'when' entries but start_date was not provided."
+                )
+
             for w in whens:
                 items = w if isinstance(w, list) else [w]
                 for item in items:
