@@ -4,7 +4,7 @@ from typing import Type
 
 import numpy as np
 
-PropertyType = tuple[str, int, Type[int] | Type[float] | np.dtype, int | float]
+PropertyType = tuple[str, int, Type[int] | Type[float] | type[np.generic], int | float]
 
 # ---------------------------------------------------------------------------
 # Helper: static routing

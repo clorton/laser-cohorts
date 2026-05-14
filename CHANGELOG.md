@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+### Changed (Campaign — parsed entries are dataclass instances)
+- `src/laser/cohorts/campaign.py`: introduced `_ScheduledEntry`, a module-level `@dataclass` with fields `what`, `who`, `where`, `params`, `notes`, and `tick`
+- `Campaign._parse_entries` now returns `list[_ScheduledEntry]` instead of `list[dict]` — same content, attribute access instead of string-keyed lookup
+- `Campaign.setup`, `Campaign.step`, `Campaign.properties`, and `Campaign.states` updated to read fields via `entry.what` / `entry.who` / `entry.where` / `entry.params` / `entry.notes` / `entry.tick`
+- `Campaign._every_tick` and `Campaign._at_tick` type annotations updated to `list[_ScheduledEntry]` / `dict[int, list[_ScheduledEntry]]`
+- `properties` and `states` also dropped the dead `name not in self._registry` guard — validation now ensures all `what` names are registered
+
+### Changed (Campaign — registered-intervention check moved to validation)
+- `src/laser/cohorts/campaign.py` `Campaign._validate`: added a per-entry check that every `what` value names an intervention class that has already been registered via `Campaign.register`; unregistered names now raise `ValueError` at construction time with a message that points to the missing registration call
+- `Campaign.step`: removed the runtime `if name not in self._registry: raise KeyError(...)` guard — the lookup is now unconditional because validation has already ensured every name resolves; method docstring updated accordingly
+- `Campaign.__init__` Raises section adds the new unregistered-`what` `ValueError`
+- `tests/test_campaign.py`: renamed `test_unknown_intervention_name_raises_key_error` → `test_unknown_intervention_name_raises_value_error_at_construction`; the test now asserts the `ValueError` fires from `Campaign(...)` rather than from `model.run()`
+
+### Added (Campaign — explicit `_validate` stage)
+- `src/laser/cohorts/campaign.py`: new `Campaign._validate(raw)` method runs between `_load` and `_parse_entries`. It checks (1) every entry has required `who`, `what`, and `where` fields; (2) each `who`/`where`/`when` value matches the documented per-field grammar; (3) `when` lists are homogeneous (no mixing of ints and dates within a list); (4) no cross-entry mixing of date and integer `when` values; (5) `start_date` is provided when dates are used and no date precedes it
+- new module-level validators `_validate_who_value`, `_validate_where_value`, `_validate_when_value` and predicates `_is_int_like` / `_is_date_like` carry the per-value grammar rules
+- `Campaign._parse_entries` is now pure conversion — all the cross-entry and required-field checks moved to `_validate`
+- `_normalize_when` simplified to pure conversion (no more mixed-list, missing-`start_date`, or date-before-start checks); these errors are now surfaced earlier with the same messages
+- Missing `what` now raises `ValueError` at construction time instead of later `KeyError` inside `step()`
+- Invalid value shapes (e.g. `who=42`, `where="abc"`, `when="notadate"`, mixed lists) now raise `ValueError` at construction with a field-specific message instead of crashing later inside `_normalize_*` or `int()`
+- `tests/test_campaign.py`: added 6 new tests covering missing `what`, invalid `who` int, invalid `where` non-numeric string, invalid `when` non-date string, list with wrong element type for `who`, and list with wrong element type for `where`
+
+### Changed (Campaign — unified CSV cell handling for `who`/`where`/`when`)
+- `src/laser/cohorts/campaign.py` `_load_csv`: the field-specific `raw_who` / `raw_where` / `raw_when` blocks are replaced by a single nested `_normalize_cell(value)` helper applied uniformly to all three fields via a `for field in ("who", "where", "when")` loop; the cell grammar (empty → drop, `"*"` → keep, `"[…]"` → JSON, else → bare string) is now identical across the three
+- `_normalize_who` updated to accept a bare scalar string (e.g. `who="S"`) and wrap it as `["S"]`, parallel to how `_normalize_where` and `_normalize_when` already handle single scalars; bracketed strings still parse as JSON arrays
+- `tests/test_campaign.py`: added `test_who_bare_string_wrapped_as_single_element_list` (dict input) and `test_csv_who_bare_string_cell_parses_as_single_element_list` (CSV input)
+
+### Changed (Campaign — set-based dedup of `states` and `properties`)
+- `src/laser/cohorts/campaign.py` `Campaign.states` and `Campaign.properties`: replaced the manual `if X not in result: result.append(X)` dedup with a `set` accumulator and `list(result)` at the end; PropertyType tuples and state strings are both hashable so this works without any change to the public API
+- docstrings updated to note that the returned-list order is now unspecified (the `Model.components` setter already deduplicates downstream, so order here is not load-bearing)
+
+### Changed (Campaign — `who` and `where` are now required)
+- `src/laser/cohorts/campaign.py` `_parse_entries`: omitting the `who` or `where` field from a schedule entry now raises `ValueError`; users must specify `"*"` explicitly to target all states or all nodes (silent defaulting hid configuration mistakes)
+- `_load_csv`: a missing `who`/`where` column or an empty `who`/`where` cell is now mapped to an absent dict key so `_parse_entries` produces the same clean error, rather than the previous opaque `json.JSONDecodeError` for empty cells
+- module docstring, `Campaign.__init__` Raises section, and `docs/campaign.md` updated to mark `who`/`where` as required; `docs/campaign.md` schedule-fields table now has a Required? column and an admonition spelling out the rule
+- `docs/campaign.md` `when` variants table now also includes the list-of-dates form (previously stated as unsupported)
+- `tests/test_campaign.py`: added 4 new tests — `test_missing_who_raises_value_error`, `test_missing_where_raises_value_error`, `test_csv_missing_who_column_raises_value_error`, `test_csv_empty_where_cell_raises_value_error`
+
+### Changed (Campaign — extracted `_normalize_when`)
+- `src/laser/cohorts/campaign.py`: extracted a module-level `_normalize_when(raw, start_date)` helper that mirrors `_normalize_who` and `_normalize_where`; it returns `list[int] | None` (`None` for `"*"`) and handles all `when` forms (int, int-string, date string, list of ints, list of dates)
+- `_normalize_when` raises `ValueError` for: lists that mix date strings and non-dates, date-valued inputs missing `start_date`, and dates earlier than `start_date`
+- `_parse_entries`: simplified to (1) detect cross-entry mixing of date and integer `when`, then (2) call `_normalize_when` per entry and expand returned tick lists into one parsed entry per tick
+- removed the now-redundant `Campaign._date_to_tick` method (logic absorbed by `_normalize_when`)
+
+### Changed (Campaign — list-of-dates support in `when`)
+- `src/laser/cohorts/campaign.py` `_parse_entries`: lists of date strings (e.g. `["2020-01-10", "2020-02-01"]`) are now accepted in the `when` field and expanded into one firing per listed date, with each date converted to a tick offset from `start_date`
+- new helper `Campaign._date_to_tick` centralises the date-to-tick conversion and raises `ValueError` if any date precedes `start_date`
+- mixed dates and integer ticks within a single list (e.g. `["2020-01-10", 15]`) now raise `ValueError` early; the `has_dates` / `has_int_ticks` detection in `_parse_entries` now inspects list contents in addition to scalar entries
+- module docstring and `Campaign.__init__` Raises section updated to document the new list-of-dates form and the date-before-start_date error
+- **Fixed** a pre-existing inverted comparison bug in the scalar-date branch (`self._start_date < d` → `d < self._start_date`) so single-date `when` values no longer spuriously raise "is before campaign start date" for dates that actually fall after start_date
+- `tests/test_campaign.py`: removed obsolete `test_when_list_of_dates_raises_value_error`; added 7 new tests covering happy-path date-list firing, out-of-range date skipping, per-firing metadata preservation, missing-start_date `ValueError`, mixed-list `ValueError`, date-before-start `ValueError`, and CSV JSON-array-of-dates round-trip; shared `_make_model_with_date_schedule` helper added
+
 ### Changed (nb_15 gravity model)
 - `docs/notebooks/nb_15_england_wales_model.ipynb`: replaced manual gravity calculation with `laser.core.migration.gravity(pops, distances, k, a, b, c)`; removed manual `d_safe` div-by-zero guard and `np.fill_diagonal` call (handled internally by the library)
 

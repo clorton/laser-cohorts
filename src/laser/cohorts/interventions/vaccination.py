@@ -56,7 +56,7 @@ class Vaccination(Intervention):
         Returns:
             list[PropertyType]: ``[("newly_vaccinated", nticks, np.int32, 0)]``
         """
-        return [("newly_vaccinated", self.model.params.nticks, np.int32, 0)]
+        return [("newly_vaccinated", int(self.model.params.nticks), np.int32, 0)] # type: ignore  # pyright: ignore[reportOptionalMemberAccess]
 
     def execute(
         self,

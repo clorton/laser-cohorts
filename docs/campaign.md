@@ -30,14 +30,19 @@ model.run()
 
 Each entry is a dict with six fields:
 
-| Field | Type | Meaning |
-|---|---|---|
-| `who` | `"*"` or `list[str]` | Compartment states to target. `"*"` means all states; `["S", "R"]` restricts to those two. |
-| `what` | `str` | Name of a registered `Intervention` subclass. |
-| `when` | see below | When to fire. |
-| `where` | `"*"`, `int`, or `list[int]` | Node IDs to target. `"*"` means all nodes. |
-| `parameters` | `dict` | Arbitrary key/value pairs forwarded to `execute()`. |
-| `notes` | `str` | Free-text annotation forwarded to `execute()`. |
+| Field | Required? | Type | Meaning |
+|---|---|---|---|
+| `who` | **required** | `"*"` or `list[str]` | Compartment states to target. `"*"` means all states; `["S", "R"]` restricts to those two. |
+| `what` | **required** | `str` | Name of a registered `Intervention` subclass. |
+| `when` | optional (default `"*"`) | see below | When to fire. |
+| `where` | **required** | `"*"`, `int`, or `list[int]` | Node IDs to target. `"*"` means all nodes. |
+| `parameters` | optional (default `{}`) | `dict` | Arbitrary key/value pairs forwarded to `execute()`. |
+| `notes` | optional (default `""`) | `str` | Free-text annotation forwarded to `execute()`. |
+
+!!! note
+    `who` and `where` are required for every entry — omitting them raises
+    `ValueError`. Use `"*"` explicitly to target all states or all nodes;
+    the Campaign deliberately does **not** silently default these fields.
 
 ### `when` variants
 
@@ -47,8 +52,9 @@ Each entry is a dict with six fields:
 | `30` | Fires once on tick 30. |
 | `[30, 60, 90]` | Fires once on each listed tick. |
 | `"2020-03-15"` | Fires on the tick corresponding to that date; requires `start_date`. |
+| `["2020-03-15", "2020-06-01"]` | Fires once on each listed date; requires `start_date`. |
 
-Integer ticks and date strings cannot be mixed in the same schedule. Lists of date strings are not supported — use a list of integer ticks instead.
+Integer ticks and date strings cannot be mixed in the same schedule — neither across entries nor within a single list. Dates earlier than `start_date` raise `ValueError`.
 
 ```python
 # Date-based schedule
