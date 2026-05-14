@@ -47,3 +47,6 @@ if isValid && isAllowed && isSecure {
 - Always add a docstring to tests explaining the purpose of the test and the implications of failure(s)
 - Always comment on inconsistencies or ambiguities in functions being tested
 - Always run new tests to verify implementation before considering implementation as complete
+
+## laser.cohorts specific
+- Note that state access on a StateArray (model.states) does not require looking up the state index but can be done directly, e.g., self.model.states.S or self.model.states.I
