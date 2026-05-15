@@ -98,6 +98,13 @@ extra_javascript:
 
 extra_css:
   - customization/css/extra.css # custom CSS for footer spacing
+
+# Files inside docs/ that should be completely ignored by the build.
+# gitignore-style: trailing slash recursively excludes a directory and all
+# its contents (top-level files, subdirectories, generated __pycache__, etc.).
+exclude_docs: |
+  notebooks/data/
+
 plugins:
   - search: # search functionality
       lang: en
@@ -146,10 +153,10 @@ plugins:
       glob:
         - customization/gen-files.py # exclude file generation script
         - includes/glossary.md # exclude glossary include file
-        - notebooks/data/* # exclude notebook data files (raw .py / .md / .npy)
+        - notebooks/data/*
         - notebooks/data/**
 
-copyright: Copyright &copy; 2025 Gates Foundation. All rights reserved.
+copyright: Copyright &copy; 2026 Gates Foundation. All rights reserved.
 
 extra:
   generator: false
