@@ -10,6 +10,7 @@ __version__ = version("laser.cohorts")
 
 from .campaign import Campaign
 from .campaign import Intervention
+from .campaign import ScheduledEntry
 from .components import Exposed
 from .components import Infectious
 from .components import InfectiousToRecovered
@@ -40,6 +41,7 @@ __all__ = [
     "PropertyType",
     "Recovered",
     "RecoveredToSusceptible",
+    "ScheduledEntry",
     "StateArray",
     "Susceptible",
     "TransmissionSE",

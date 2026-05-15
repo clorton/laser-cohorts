@@ -209,7 +209,7 @@ def _normalize_when(raw, start_date: date | None = None) -> list[int] | None:
 
 
 @dataclass
-class _ScheduledEntry:
+class ScheduledEntry:
     """A single fully-parsed schedule entry — one intervention dispatch.
 
     Each instance corresponds to one ``(tick, intervention)`` pair after the
@@ -386,14 +386,14 @@ class Campaign:
         self._validate(raw)
         self._parsed = self._parse_entries(raw)
 
-        self._every_tick: list[_ScheduledEntry] = []
-        self._at_tick: dict[int, list[_ScheduledEntry]] = {}
+        self._every_tick: list[ScheduledEntry] = []
+        self._at_tick: dict[int, list[ScheduledEntry]] = {}
 
     # ------------------------------------------------------------------
     # Loading
     # ------------------------------------------------------------------
 
-    def _load(self, source: "dict | list | str | Path") -> "list[dict]":
+    def _load(self, source: dict | list | str | Path) -> list[dict]:
         if isinstance(source, dict):
             return [source]
         if isinstance(source, list):
@@ -449,7 +449,7 @@ class Campaign:
     # Parsing and validation
     # ------------------------------------------------------------------
 
-    def _validate(self, raw: "list[dict]") -> None:
+    def _validate(self, raw: list[dict]) -> None:
         """Validate a loaded schedule before parsing.
 
         Runs after `_load` and before `_parse_entries`, raising eagerly at
@@ -547,20 +547,20 @@ class Campaign:
                                 f"start date {self._start_date:%Y-%m-%d}."
                             )
 
-    def _parse_entries(self, raw: "list[dict]") -> "list[_ScheduledEntry]":
+    def _parse_entries(self, raw: list[dict]) -> list[ScheduledEntry]:
         """Convert pre-validated schedule entries into the tick-indexed form.
 
         Assumes `_validate` has already approved every entry.  Each entry is
-        expanded into one or more `_ScheduledEntry` instances — one per
+        expanded into one or more `ScheduledEntry` instances — one per
         resolved tick — and every-tick entries get ``tick=None``.
 
         Args:
             raw (list[dict]): Validated schedule entries from `_load`.
 
         Returns:
-            list[_ScheduledEntry]: Flattened list of per-tick dispatch entries.
+            list[ScheduledEntry]: Flattened list of per-tick dispatch entries.
         """
-        parsed: list[_ScheduledEntry] = []
+        parsed: list[ScheduledEntry] = []
         for entry in raw:
             ticks = _normalize_when(entry.get("when", "*"), self._start_date)
             what = entry["what"]
@@ -570,10 +570,10 @@ class Campaign:
             notes = str(entry.get("notes", ""))
 
             if ticks is None:
-                parsed.append(_ScheduledEntry(what=what, who=who, where=where, params=params, notes=notes, tick=None))
+                parsed.append(ScheduledEntry(what=what, who=who, where=where, params=params, notes=notes, tick=None))
             else:
                 for t in ticks:
-                    parsed.append(_ScheduledEntry(what=what, who=who, where=where, params=params, notes=notes, tick=t))
+                    parsed.append(ScheduledEntry(what=what, who=who, where=where, params=params, notes=notes, tick=t))
 
         return parsed
 
@@ -592,6 +592,45 @@ class Campaign:
             "Campaign: %d every-tick and %d tick-specific interventions scheduled",
             len(self._every_tick),
             sum(len(v) for v in self._at_tick.values()),
+        )
+
+    def add_entry(self, entry: ScheduledEntry) -> None:
+        """Schedule a `ScheduledEntry` for dispatch later in the running simulation.
+
+        Designed to be called at simulation time — typically from inside another
+        intervention's ``execute()`` to add a follow-up dispatch.  The entry is
+        routed to ``self._every_tick`` if ``entry.tick is None``, otherwise to
+        the appropriate ``self._at_tick`` bucket so that the next call to
+        ``Campaign.step`` will pick it up.
+
+        Args:
+            entry (ScheduledEntry): Fully-formed entry. ``entry.tick`` is the
+                absolute simulation tick at which to dispatch (or ``None`` for
+                every-tick firing); ``entry.what`` must be a registered
+                intervention class name.
+
+        Raises:
+            TypeError: If ``entry`` is not a `ScheduledEntry`.
+            ValueError: If ``entry.what`` is not a registered intervention.
+        """
+        if not isinstance(entry, ScheduledEntry):
+            raise TypeError(
+                f"add_entry expects a ScheduledEntry, got {type(entry).__name__}"
+            )
+        if entry.what not in self._registry:
+            raise ValueError(
+                f"Intervention '{entry.what}' is not registered. "
+                "Call Campaign.register(<class>) before scheduling it."
+            )
+        if entry.tick is None:
+            self._every_tick.append(entry)
+        else:
+            self._at_tick.setdefault(entry.tick, []).append(entry)
+        logger.info(
+            "Campaign.add_entry: %s scheduled for tick %s on nodes %s",
+            entry.what,
+            entry.tick if entry.tick is not None else "*",
+            entry.where,
         )
 
     def start_step(self, tick: int) -> None:

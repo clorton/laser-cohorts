@@ -24,7 +24,7 @@ from pathlib import Path
 
 from laser.core import PropertySet
 from laser.core.utils import grid
-from laser.cohorts import Campaign, Intervention, Model
+from laser.cohorts import Campaign, Intervention, Model, ScheduledEntry
 import laser.cohorts.SIR as SIR
 from laser.generic.utils import ValuesMap
 
@@ -1050,3 +1050,419 @@ def test_csv_who_as_json_list(tmp_path: Path) -> None:
     model.run()
 
     assert _calls[0]["who"] == ["S"]
+
+
+# ---------------------------------------------------------------------------
+# Campaign.add_entry — runtime addition of scheduled entries
+# ---------------------------------------------------------------------------
+
+
+def _make_model_for_add_entry(initial_schedule, nticks: int = 5) -> Model:
+    """Build a minimal two-node SIR model with the given initial schedule."""
+    n = 2
+    scenario = grid(M=n, N=1)
+    scenario["S"] = 1000
+    scenario["I"] = 10
+    scenario["R"] = 0
+    p = PropertySet({"nticks": nticks, "beta": 0.0, "r_recovery": 0.0})
+    model = Model(scenario, p)
+    campaign = Campaign(model, initial_schedule)
+    betas = ValuesMap.from_scalar(0.0, nticks, n)
+    r_recoveries = ValuesMap.from_scalar(0.0, nticks, n)
+    model.components = [
+        SIR.Susceptible(model),
+        SIR.Infectious(model, r_recovery=r_recoveries),
+        SIR.Recovered(model),
+        SIR.Transmission(model, beta=betas),
+        campaign,
+    ]
+    return model
+
+
+def test_add_entry_routes_tick_specific_entry_to_at_tick() -> None:
+    """Given a Campaign with a single initial entry at tick 0, when add_entry
+    is called with a ScheduledEntry for tick 3, then the entry fires on tick 3
+    in addition to the original entry at tick 0.
+
+    Failure means the new entry was either dropped, fired on the wrong tick,
+    or shadowed the existing entry.
+    """
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
+                "parameters": {}, "notes": "initial"}]
+    model = _make_model_for_add_entry(initial, nticks=5)
+    campaign = model.components[-1]
+
+    new_entry = ScheduledEntry(
+        what="RecordingIntervention",
+        who=None,
+        where=None,
+        params={},
+        notes="added",
+        tick=3,
+    )
+    campaign.add_entry(new_entry)
+
+    model.run()
+
+    fire_ticks = sorted(c["tick"] for c in _calls)
+    fire_notes = [c["notes"] for c in _calls]
+    assert fire_ticks == [0, 3]
+    assert "added" in fire_notes
+    assert "initial" in fire_notes
+
+
+def test_add_entry_routes_every_tick_entry_to_every_tick() -> None:
+    """Given a Campaign with no every-tick entries, when add_entry is called
+    with a ScheduledEntry whose tick is None, then the entry fires on every
+    subsequent tick.
+
+    Failure means the every-tick routing branch is broken.
+    """
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
+                "parameters": {}, "notes": "init"}]
+    model = _make_model_for_add_entry(initial, nticks=4)
+    campaign = model.components[-1]
+
+    every_tick = ScheduledEntry(
+        what="RecordingIntervention",
+        who=None,
+        where=None,
+        params={},
+        notes="every",
+        tick=None,
+    )
+    campaign.add_entry(every_tick)
+
+    model.run()
+
+    every_calls = [c for c in _calls if c["notes"] == "every"]
+    assert len(every_calls) == 4
+    assert sorted(c["tick"] for c in every_calls) == [0, 1, 2, 3]
+
+
+def test_add_entry_dispatchable_from_inside_an_intervention() -> None:
+    """Given a 'Trigger' intervention that, on its first firing, calls
+    add_entry to schedule a follow-up RecordingIntervention at tick + 2,
+    when the model runs, then the recording intervention fires on the
+    follow-up tick.
+
+    Failure means add_entry is not visible to dispatch on subsequent ticks,
+    or the entry is registered in the wrong bucket.
+    """
+
+    class TriggerIntervention(Intervention):
+        @property
+        def states(self):
+            return []
+
+        @property
+        def properties(self):
+            return []
+
+        def execute(self, tick, who, where, params, notes):
+            # locate campaign and schedule a follow-up at tick + 2
+            campaign = next(c for c in self.model.components if isinstance(c, Campaign))
+            campaign.add_entry(
+                ScheduledEntry(
+                    what="RecordingIntervention",
+                    who=None,
+                    where=None,
+                    params={},
+                    notes="reactive",
+                    tick=tick + 2,
+                )
+            )
+
+    Campaign.register(TriggerIntervention)
+
+    initial = [{"who": "*", "what": "TriggerIntervention", "when": 1, "where": "*",
+                "parameters": {}, "notes": "trigger"}]
+    model = _make_model_for_add_entry(initial, nticks=6)
+    model.run()
+
+    # Trigger fires at tick 1, RecordingIntervention at tick 3.
+    recording_calls = [c for c in _calls if c["notes"] == "reactive"]
+    assert len(recording_calls) == 1
+    assert recording_calls[0]["tick"] == 3
+
+
+def test_add_entry_rejects_non_scheduled_entry_with_type_error() -> None:
+    """Given a plain dict passed to add_entry instead of a ScheduledEntry,
+    when add_entry is invoked, then a TypeError is raised.
+
+    Failure means dict-shaped inputs are silently accepted and lead to attribute
+    errors deep inside Campaign.step when the dispatcher tries `entry.what`.
+    """
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
+                "parameters": {}, "notes": "init"}]
+    model = _make_model_for_add_entry(initial, nticks=3)
+    campaign = model.components[-1]
+
+    with pytest.raises(TypeError, match="ScheduledEntry"):
+        campaign.add_entry({"what": "RecordingIntervention"})
+
+
+def test_add_entry_rejects_unregistered_what_with_value_error() -> None:
+    """Given a ScheduledEntry whose 'what' names an unregistered intervention,
+    when add_entry is invoked, then a ValueError is raised that mentions the
+    bad name.
+
+    Failure means the validation gate inherited from the construction-time
+    validator has been lost for runtime additions.
+    """
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
+                "parameters": {}, "notes": "init"}]
+    model = _make_model_for_add_entry(initial, nticks=3)
+    campaign = model.components[-1]
+
+    bad_entry = ScheduledEntry(
+        what="DoesNotExist",
+        who=None,
+        where=None,
+        params={},
+        notes="bogus",
+        tick=2,
+    )
+    with pytest.raises(ValueError, match="DoesNotExist"):
+        campaign.add_entry(bad_entry)
+
+
+def test_add_entry_forwards_who_where_params_and_notes_to_intervention() -> None:
+    """Given a ScheduledEntry with explicit who, where, params, and notes, when
+    add_entry schedules it and the model runs to the firing tick, then the
+    intervention's execute receives those exact values.
+
+    Failure means add_entry mangled fields on the way through (e.g. defaulted
+    who/where, dropped params, or coerced notes).
+    """
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
+                "parameters": {}, "notes": "init"}]
+    model = _make_model_for_add_entry(initial, nticks=4)
+    campaign = model.components[-1]
+
+    campaign.add_entry(
+        ScheduledEntry(
+            what="RecordingIntervention",
+            who=["S", "R"],
+            where=[1, 0],
+            params={"dose": 7, "round": "spring"},
+            notes="added-entry-with-fields",
+            tick=2,
+        )
+    )
+
+    model.run()
+
+    matches = [c for c in _calls if c["notes"] == "added-entry-with-fields"]
+    assert len(matches) == 1
+    call = matches[0]
+    assert call["tick"]   == 2
+    assert call["who"]    == ["S", "R"]
+    assert call["where"]  == [1, 0]
+    assert call["params"] == {"dose": 7, "round": "spring"}
+
+
+def test_add_entry_multiple_entries_same_tick_all_fire_in_added_order() -> None:
+    """Given three ScheduledEntries added for the same tick in sequence, when
+    the model runs to that tick, then all three fire and the firing order
+    matches the order they were added to the campaign.
+
+    Failure means the at_tick bucket either drops entries or reorders them.
+    """
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
+                "parameters": {}, "notes": "init"}]
+    model = _make_model_for_add_entry(initial, nticks=4)
+    campaign = model.components[-1]
+
+    for tag in ("alpha", "beta", "gamma"):
+        campaign.add_entry(
+            ScheduledEntry(
+                what="RecordingIntervention",
+                who=None, where=None,
+                params={}, notes=tag, tick=2,
+            )
+        )
+
+    model.run()
+
+    tick2_notes = [c["notes"] for c in _calls if c["tick"] == 2]
+    assert tick2_notes == ["alpha", "beta", "gamma"]
+
+
+def test_add_entry_for_already_past_tick_never_fires() -> None:
+    """Given a ScheduledEntry added for a tick that has already been stepped
+    past, when the model continues running, then the entry never fires.
+
+    Past ticks are unreachable — Campaign.step only ever fetches the bucket
+    for the current tick going forward.  Failure means past entries were
+    re-replayed (which would corrupt the simulation history).
+    """
+
+    class AddPastEntryIntervention(Intervention):
+        @property
+        def states(self):
+            return []
+
+        @property
+        def properties(self):
+            return []
+
+        def execute(self, tick, who, where, params, notes):
+            # at tick 3, schedule a never-firing recording for tick 1
+            campaign = next(c for c in self.model.components if isinstance(c, Campaign))
+            campaign.add_entry(
+                ScheduledEntry(
+                    what="RecordingIntervention",
+                    who=None, where=None,
+                    params={}, notes="too-late", tick=1,
+                )
+            )
+
+    Campaign.register(AddPastEntryIntervention)
+
+    initial = [{"who": "*", "what": "AddPastEntryIntervention", "when": 3, "where": "*",
+                "parameters": {}, "notes": "trigger"}]
+    model = _make_model_for_add_entry(initial, nticks=6)
+    model.run()
+
+    # The trigger ran at tick 3; the added entry targeted tick 1 (already past)
+    too_late = [c for c in _calls if c["notes"] == "too-late"]
+    assert too_late == []
+
+
+def test_add_entry_for_current_tick_does_not_fire_this_tick() -> None:
+    """Given an intervention at tick T that calls add_entry to schedule another
+    entry for the same tick T, when the model continues, then the newly added
+    entry does NOT fire on tick T (it would on tick T+1 if scheduled there).
+
+    Campaign.step builds its dispatch list at the start of the tick.  An entry
+    added during dispatch goes into the at_tick bucket but is invisible to the
+    in-flight iteration.  This test pins that semantic so a future change to
+    Campaign.step that re-reads its bucket mid-iteration would be noticed.
+    """
+
+    class SelfRescheduleIntervention(Intervention):
+        @property
+        def states(self):
+            return []
+
+        @property
+        def properties(self):
+            return []
+
+        def execute(self, tick, who, where, params, notes):
+            campaign = next(c for c in self.model.components if isinstance(c, Campaign))
+            campaign.add_entry(
+                ScheduledEntry(
+                    what="RecordingIntervention",
+                    who=None, where=None,
+                    params={}, notes="same-tick", tick=tick,
+                )
+            )
+
+    Campaign.register(SelfRescheduleIntervention)
+
+    initial = [{"who": "*", "what": "SelfRescheduleIntervention", "when": 2, "where": "*",
+                "parameters": {}, "notes": "trigger"}]
+    model = _make_model_for_add_entry(initial, nticks=5)
+    model.run()
+
+    # The trigger ran at tick 2 and scheduled a same-tick follow-up.
+    # The follow-up should NOT have fired (entries list was already built).
+    same_tick = [c for c in _calls if c["notes"] == "same-tick"]
+    assert same_tick == []
+
+
+def test_add_entry_supports_cascading_runtime_additions() -> None:
+    """Given an intervention that calls add_entry, where the *added* entry
+    itself calls add_entry on its own firing, when the model runs long enough
+    for both to fire, then both reactive entries are observed in the call log.
+
+    This exercises the loop: a runtime-added entry's execute() should have the
+    same access to Campaign as a statically scheduled one.
+    """
+
+    class CascadeIntervention(Intervention):
+        @property
+        def states(self):
+            return []
+
+        @property
+        def properties(self):
+            return []
+
+        def execute(self, tick, who, where, params, notes):
+            # On the first firing only, schedule the second cascade.
+            if notes == "first":
+                campaign = next(c for c in self.model.components if isinstance(c, Campaign))
+                campaign.add_entry(
+                    ScheduledEntry(
+                        what="CascadeIntervention",
+                        who=None, where=None,
+                        params={}, notes="second", tick=tick + 2,
+                    )
+                )
+
+    Campaign.register(CascadeIntervention)
+
+    # Use a RecordingIntervention rather than CascadeIntervention so the call
+    # log captures the firings; cascade's execute doesn't record itself.  Wrap
+    # the cascade so the second firing schedules a recording on tick+1.
+    class RecordingCascade(Intervention):
+        @property
+        def states(self):
+            return []
+
+        @property
+        def properties(self):
+            return []
+
+        def execute(self, tick, who, where, params, notes):
+            _calls.append({"tick": tick, "who": who, "where": where, "params": params, "notes": notes})
+            if notes == "first":
+                campaign = next(c for c in self.model.components if isinstance(c, Campaign))
+                campaign.add_entry(
+                    ScheduledEntry(
+                        what="RecordingCascade",
+                        who=None, where=None,
+                        params={}, notes="second", tick=tick + 2,
+                    )
+                )
+
+    Campaign.register(RecordingCascade)
+
+    initial = [{"who": "*", "what": "RecordingCascade", "when": 1, "where": "*",
+                "parameters": {}, "notes": "first"}]
+    model = _make_model_for_add_entry(initial, nticks=8)
+    model.run()
+
+    # We expect two cascade events: the initial 'first' at tick 1 and the
+    # cascaded 'second' at tick 3.
+    cascade_ticks = sorted(c["tick"] for c in _calls if c["notes"] in {"first", "second"})
+    assert cascade_ticks == [1, 3]
+
+
+def test_add_entry_works_with_empty_initial_schedule() -> None:
+    """Given a Campaign constructed from an empty list, when add_entry is
+    used to populate it before the model runs, then the scheduled entries
+    still fire on their target ticks.
+
+    'Start empty and grow at runtime' is a useful pattern; failure means
+    a Campaign with no initial entries can't be extended.
+    """
+    model = _make_model_for_add_entry([], nticks=5)
+    campaign = model.components[-1]
+
+    campaign.add_entry(
+        ScheduledEntry(
+            what="RecordingIntervention",
+            who=None, where=None,
+            params={}, notes="added-after-construction", tick=2,
+        )
+    )
+
+    model.run()
+
+    notes = [c["notes"] for c in _calls]
+    assert notes == ["added-after-construction"]
+    assert _calls[0]["tick"] == 2
