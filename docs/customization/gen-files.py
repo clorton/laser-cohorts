@@ -36,9 +36,6 @@ def emit_page(dotted: str, body: str | None = None) -> None:
 packages: set[str] = set()
 modules: set[str] = set()
 
-# Ensure the root 'laser' landing exists so we can nest under it if desired
-packages.add(NS)
-
 for py in NS_ROOT.rglob("*.py"):
     if py.name == "__init__.py":
         # still create the package page for its directory
@@ -51,13 +48,15 @@ for py in NS_ROOT.rglob("*.py"):
     dotted_mod = rel_mod.as_posix().replace("/", ".")
     modules.add(dotted_mod)
 
-    # ancestor packages up to 'laser'
+    # ancestor packages up to (but not including) the bare namespace 'laser'.
+    # SUMMARY.md below only enumerates 'laser.cohorts' and its descendants, so
+    # emitting a stub 'laser/index.md' would leave it orphan in the nav.
     p = py.parent
     while True:
         rel_pkg = p.relative_to(SRC).as_posix().replace("/", ".")
-        packages.add(rel_pkg)
         if rel_pkg == NS:
             break
+        packages.add(rel_pkg)
         p = p.parent
 
 # ---------- emit all pages ----------
@@ -70,9 +69,6 @@ def emit_once(dotted: str, body: str | None = None) -> None:
     emit_page(dotted, body)
     emitted.add(dotted)
 
-
-# small landing for 'laser'
-emit_once(NS, f"# {NS}\n\nRoot namespace for LASER packages.\n")
 
 for name in sorted(packages, key=lambda s: (s.count("."), s)):
     emit_once(name)

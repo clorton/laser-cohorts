@@ -52,6 +52,8 @@ nav:
     - Routine immunization: notebooks/nb_14_routine_immunization.ipynb
     - England & Wales spatial SEIR model: notebooks/nb_15_england_wales_model.ipynb
     - England & Wales analysis: notebooks/nb_16_ew_analysis.ipynb
+    - Campaign — hub & spoke example: notebooks/nb_17_campaign_example.ipynb
+    - Campaign specification formats: notebooks/nb_18_campaign_specs.ipynb
   - API reference: reference/
 
 
@@ -144,6 +146,8 @@ plugins:
       glob:
         - customization/gen-files.py # exclude file generation script
         - includes/glossary.md # exclude glossary include file
+        - notebooks/data/* # exclude notebook data files (raw .py / .md / .npy)
+        - notebooks/data/**
 
 copyright: Copyright &copy; 2025 Gates Foundation. All rights reserved.
 
