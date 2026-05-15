@@ -62,14 +62,35 @@ dev = [
 
 [dependency-groups]
 dev = [
-    "mkdocs>=1.6.1",
-    "mkdocs-git-revision-date-localized-plugin>=1.5.1",
-    "mkdocs-include-markdown-plugin>=7.2.1",
-    "mkdocs-material>=9.7.5",
-    "mkdocstrings[python]>=1.0.3",
     "pytest>=9.0.2",
     "pytest-cov>=6.0.0",
     "ruff>=0.15.5",
+]
+
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-autorefs", # create automatic linkable references to sections, etc.
+    "mkdocs-exclude",
+    "mkdocs-gen-files", # generate external module reference docs
+    "mkdocs-git-revision-date-localized-plugin>=1.5.1",
+    "mkdocs-include-markdown-plugin>=7.2.1", # include files outside /docs
+    "mkdocs-jupyter", # jupyter notebooks
+    "mkdocs-literate-nav", # use a SUMMARY.md file for API reference TOC
+    "mkdocs-material>=9.7.5", # doc theme that includes extensive functionality
+    "mkdocs-mermaid2-plugin",
+    "mkdocs-section-index", # ability to create parent topics in TOC
+    "mkdocs-table-reader-plugin",
+    "mkdocstrings[python]>=1.0.3", # generate API reference from docstrings
+    "mkdocstrings-python", # python handler for mkdocstrings
+    "pymdown-extensions", # various extensions for markdown
+    "python-markdown-math", # integrate LaTeX math
+
+    # include all packages needed for running Jupyter notebooks
+    "laser.core",
+    "matplotlib",
+    "numpy",
+    "pandas",
+    "scipy",
 ]
 
 basemaps = [
