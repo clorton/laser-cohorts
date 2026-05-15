@@ -54,6 +54,7 @@ nav:
     - England & Wales analysis: notebooks/nb_16_ew_analysis.ipynb
     - Campaign — hub & spoke example: notebooks/nb_17_campaign_example.ipynb
     - Campaign specification formats: notebooks/nb_18_campaign_specs.ipynb
+    - Surveillance and reactive campaign example: notebooks/nb_19_reactive_campaign.ipynb
   - API reference: reference/
 
 
