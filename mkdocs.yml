@@ -1,4 +1,4 @@
-site_name: laser.cohorts
+site_name: laser.cohorts Documentation
 site_url: https://institutefordiseasemodeling.github.io/laser-cohorts
 repo_name: InstituteforDiseaseModeling/laser-cohorts
 repo_url: https://github.com/InstituteforDiseaseModeling/laser-cohorts
@@ -83,7 +83,7 @@ markdown_extensions:
       custom_fences:
         - name: mermaid
           class: mermaid
-          format: !!python/name:mermaid2.fence_mermaid_custom
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.details # collapsible elements
   - pymdownx.tabbed: # tabbed content that can be toggled
       alternate_style: true
@@ -91,12 +91,18 @@ markdown_extensions:
 
 # javascript customization for math
 extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 extra_css:
   - customization/css/extra.css # custom CSS for footer spacing
 plugins:
-  - search # search functionality
+  - search: # search functionality
+      lang: en
+      separator: '[\s\-\.]+'
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
   - autorefs # automatically create linkable references
   - include-markdown # include other files, such as READMEs
   - table-reader # enables rendering of CSV/TSV files or tables
@@ -115,15 +121,24 @@ plugins:
           paths: [src] # path to source code
           options:
             docstring_style: google
-            show_source: false
-            merge_init_into_class: true
-            heading_level: 2
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
             show_symbol_type_heading: true
             show_symbol_type_toc: true
-            show_root_toc_entry: true
-            show_object_full_path: true
-            preload_modules:
-            - laser.core
+            signature_crossrefs: true
+            separate_signature: true
+            merge_init_into_class: true
+            docstring_section_style: table
+            members_order: source
+            show_if_no_docstring: false
+            inherited_members: false
+            filters:
+              - "!^_"  # Exclude private members
+            # Suppress warnings about missing type annotations
+            # Types are documented in Google-style docstrings
+            show_signature_annotations: false
+      enable_inventory: true
   - mermaid2
   - exclude:
       glob:
