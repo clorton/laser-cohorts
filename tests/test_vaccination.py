@@ -8,7 +8,7 @@ allocates them before the simulation runs.
 Test coverage:
 - Intervention protocol: states and properties declarations
 - Campaign aggregation: Campaign.states/properties surface Vaccination declarations
-- Deterministic execute: coverage=0 (no change), coverage=1 (complete transfer)
+- Deterministic apply: coverage=0 (no change), coverage=1 (complete transfer)
 - Error handling: invalid coverage raises ValueError
 - Targeting: who list restricts to named states; who=None targets all states
 - Targeting: where list restricts to named nodes; where=None targets all nodes
@@ -117,7 +117,7 @@ def test_vaccination_properties_declares_newly_vaccinated() -> None:
     a "newly_vaccinated" entry with np.int32 dtype.
 
     If this fails, model.nodes.newly_vaccinated is never allocated and the
-    execute() method raises AttributeError when recording vaccination counts.
+    apply() method raises AttributeError when recording vaccination counts.
     """
     model = _minimal_model(nticks=10)
     vacc = Vaccination(model)
@@ -165,7 +165,7 @@ def test_campaign_properties_surfaces_newly_vaccinated_from_vaccination() -> Non
 
 
 # ---------------------------------------------------------------------------
-# Deterministic execute: coverage=0 and coverage=1
+# Deterministic apply: coverage=0 and coverage=1
 # ---------------------------------------------------------------------------
 
 

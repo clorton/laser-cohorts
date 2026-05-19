@@ -221,8 +221,8 @@ class ScheduledEntry:
         what (str): Name of the registered intervention class.
         who (list[str] | None): Target compartment states, or ``None`` (all).
         where (list[int] | None): Target node IDs, or ``None`` (all).
-        params (dict[str, Any]): Arbitrary parameters forwarded to ``execute``.
-        notes (str): Free-text annotation forwarded to ``execute``.
+        params (dict[str, Any]): Arbitrary parameters forwarded to ``apply``.
+        notes (str): Free-text annotation forwarded to ``apply``.
         tick (int | None): Tick on which to fire, or ``None`` to fire on every tick.
     """
 
@@ -237,12 +237,12 @@ class ScheduledEntry:
 class Intervention:
     """Base class for all campaign interventions.
 
-    Subclass this, implement ``execute``, and register with
+    Subclass this, implement ``apply``, and register with
     ``Campaign.register(MyClass)``.
 
     Example:
         >>> class Vaccination(Intervention):
-        ...     def execute(self, tick, who, where, params, notes):
+        ...     def apply(self, tick, who, where, params, notes):
         ...         coverage = params.get("coverage", 0.5)
         ...         # move fraction of S to R in the target nodes
         ...         pass
@@ -285,7 +285,7 @@ class Intervention:
         """
         return []
 
-    def execute(
+    def apply(
         self,
         tick: int,
         who: list[str] | None,
@@ -293,7 +293,7 @@ class Intervention:
         params: dict[str, Any],
         notes: str,
     ) -> None:
-        """Execute the intervention.
+        """Apply the intervention.
 
         Args:
             tick (int): Current simulation tick (0-indexed).
@@ -305,7 +305,7 @@ class Intervention:
         Raises:
             NotImplementedError: Subclasses must implement this method.
         """
-        raise NotImplementedError(f"{type(self).__name__}.execute is not implemented")
+        raise NotImplementedError(f"{type(self).__name__}.apply is not implemented")
 
 
 class Campaign:
@@ -598,7 +598,7 @@ class Campaign:
         """Schedule a `ScheduledEntry` for dispatch later in the running simulation.
 
         Designed to be called at simulation time — typically from inside another
-        intervention's ``execute()`` to add a follow-up dispatch.  The entry is
+        intervention's ``apply()`` to add a follow-up dispatch.  The entry is
         routed to ``self._every_tick`` if ``entry.tick is None``, otherwise to
         the appropriate ``self._at_tick`` bucket so that the next call to
         ``Campaign.step`` will pick it up.
@@ -663,7 +663,7 @@ class Campaign:
                 entry.where,
             )
             intervention = cls(self.model)
-            intervention.execute(
+            intervention.apply(
                 tick=tick,
                 who=entry.who,
                 where=entry.where,

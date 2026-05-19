@@ -58,7 +58,7 @@ class Vaccination(Intervention):
         """
         return [("newly_vaccinated", int(self.model.params.nticks), np.int32, 0)] # type: ignore  # pyright: ignore[reportOptionalMemberAccess]
 
-    def execute(
+    def apply(
         self,
         tick: int,
         who: list[str] | None,

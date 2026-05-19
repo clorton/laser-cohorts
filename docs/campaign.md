@@ -36,8 +36,8 @@ Each entry is a dict with six fields:
 | `what` | **required** | `str` | Name of a registered `Intervention` subclass. |
 | `when` | optional (default `"*"`) | see below | When to fire. |
 | `where` | **required** | `"*"`, `int`, or `list[int]` | Node IDs to target. `"*"` means all nodes. |
-| `parameters` | optional (default `{}`) | `dict` | Arbitrary key/value pairs forwarded to `execute()`. |
-| `notes` | optional (default `""`) | `str` | Free-text annotation forwarded to `execute()`. |
+| `parameters` | optional (default `{}`) | `dict` | Arbitrary key/value pairs forwarded to `apply()`. |
+| `notes` | optional (default `""`) | `str` | Free-text annotation forwarded to `apply()`. |
 
 !!! note
     `who` and `where` are required for every entry — omitting them raises
@@ -156,7 +156,7 @@ After the campaign fires, `model.nodes.newly_vaccinated[tick]` holds the per-nod
 
 ## Writing a custom intervention
 
-Subclass `Intervention` and implement `execute()`. Override `states` and/or `properties` if your intervention needs new compartments or output arrays.
+Subclass `Intervention` and implement `apply()`. Override `states` and/or `properties` if your intervention needs new compartments or output arrays.
 
 ```python
 from laser.cohorts.campaign import Intervention
@@ -165,7 +165,7 @@ import numpy as np
 class SeedInfection(Intervention):
     """Add a fixed number of infected individuals to targeted nodes."""
 
-    def execute(self, tick, who, where, params, notes):
+    def apply(self, tick, who, where, params, notes):
         count = int(params.get("count", 1))
         nnodes = len(self.model.scenario)
         target_nodes = where if where is not None else list(range(nnodes))
@@ -204,7 +204,7 @@ class Quarantined(Intervention):
     def states(self):
         return ["Q"]
 
-    def execute(self, tick, who, where, params, notes):
+    def apply(self, tick, who, where, params, notes):
         ...   # move individuals into states.Q
 ```
 
@@ -221,7 +221,7 @@ class Quarantined(Intervention):
     def properties(self) -> list[PropertyType]:
         return [("newly_quarantined", self.model.params.nticks, np.int32, 0)]
 
-    def execute(self, tick, who, where, params, notes):
+    def apply(self, tick, who, where, params, notes):
         ...
         self.model.nodes.newly_quarantined[tick] += drawn
 ```

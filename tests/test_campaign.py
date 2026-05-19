@@ -39,7 +39,7 @@ _calls: list[dict] = []
 class RecordingIntervention(Intervention):
     """Intervention that appends its arguments to the module-level _calls list."""
 
-    def execute(self, tick, who, where, params, notes):
+    def apply(self, tick, who, where, params, notes):
         _calls.append({"tick": tick, "who": who, "where": where, "params": params, "notes": notes})
 
 
@@ -354,7 +354,7 @@ def test_when_list_of_dates_fires_on_each_date() -> None:
 
 def test_when_list_of_dates_only_fires_for_in_range_ticks() -> None:
     """Given a list of two dates where the second resolves past nticks, when
-    the model runs, then only the in-range firing actually executes.
+    the model runs, then only the in-range firing actually gets applied.
 
     Out-of-range tick offsets in a date list are silently skipped because the
     model never executes those ticks.  Failure means the scheduler errors on
@@ -1159,7 +1159,7 @@ def test_add_entry_dispatchable_from_inside_an_intervention() -> None:
         def properties(self):
             return []
 
-        def execute(self, tick, who, where, params, notes):
+        def apply(self, tick, who, where, params, notes):
             # locate campaign and schedule a follow-up at tick + 2
             campaign = next(c for c in self.model.components if isinstance(c, Campaign))
             campaign.add_entry(
@@ -1230,7 +1230,7 @@ def test_add_entry_rejects_unregistered_what_with_value_error() -> None:
 def test_add_entry_forwards_who_where_params_and_notes_to_intervention() -> None:
     """Given a ScheduledEntry with explicit who, where, params, and notes, when
     add_entry schedules it and the model runs to the firing tick, then the
-    intervention's execute receives those exact values.
+    intervention's apply receives those exact values.
 
     Failure means add_entry mangled fields on the way through (e.g. defaulted
     who/where, dropped params, or coerced notes).
@@ -1307,7 +1307,7 @@ def test_add_entry_for_already_past_tick_never_fires() -> None:
         def properties(self):
             return []
 
-        def execute(self, tick, who, where, params, notes):
+        def apply(self, tick, who, where, params, notes):
             # at tick 3, schedule a never-firing recording for tick 1
             campaign = next(c for c in self.model.components if isinstance(c, Campaign))
             campaign.add_entry(
@@ -1350,7 +1350,7 @@ def test_add_entry_for_current_tick_does_not_fire_this_tick() -> None:
         def properties(self):
             return []
 
-        def execute(self, tick, who, where, params, notes):
+        def apply(self, tick, who, where, params, notes):
             campaign = next(c for c in self.model.components if isinstance(c, Campaign))
             campaign.add_entry(
                 ScheduledEntry(
@@ -1378,7 +1378,7 @@ def test_add_entry_supports_cascading_runtime_additions() -> None:
     itself calls add_entry on its own firing, when the model runs long enough
     for both to fire, then both reactive entries are observed in the call log.
 
-    This exercises the loop: a runtime-added entry's execute() should have the
+    This exercises the loop: a runtime-added entry's apply() should have the
     same access to Campaign as a statically scheduled one.
     """
 
@@ -1391,7 +1391,7 @@ def test_add_entry_supports_cascading_runtime_additions() -> None:
         def properties(self):
             return []
 
-        def execute(self, tick, who, where, params, notes):
+        def apply(self, tick, who, where, params, notes):
             # On the first firing only, schedule the second cascade.
             if notes == "first":
                 campaign = next(c for c in self.model.components if isinstance(c, Campaign))
@@ -1406,7 +1406,7 @@ def test_add_entry_supports_cascading_runtime_additions() -> None:
     Campaign.register(CascadeIntervention)
 
     # Use a RecordingIntervention rather than CascadeIntervention so the call
-    # log captures the firings; cascade's execute doesn't record itself.  Wrap
+    # log captures the firings; cascade's apply doesn't record itself.  Wrap
     # the cascade so the second firing schedules a recording on tick+1.
     class RecordingCascade(Intervention):
         @property
@@ -1417,7 +1417,7 @@ def test_add_entry_supports_cascading_runtime_additions() -> None:
         def properties(self):
             return []
 
-        def execute(self, tick, who, where, params, notes):
+        def apply(self, tick, who, where, params, notes):
             _calls.append({"tick": tick, "who": who, "where": where, "params": params, "notes": notes})
             if notes == "first":
                 campaign = next(c for c in self.model.components if isinstance(c, Campaign))
