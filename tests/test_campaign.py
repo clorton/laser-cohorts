@@ -340,15 +340,13 @@ def test_when_list_of_dates_fires_on_each_date() -> None:
     date list is rejected, treated as a single tick, or converted incorrectly.
     """
     schedule = [
-        {"who": "*", "what": "RecordingIntervention",
-         "when": ["2020-01-10", "2020-02-01"], "where": "*",
-         "parameters": {}, "notes": ""}
+        {"who": "*", "what": "RecordingIntervention", "when": ["2020-01-10", "2020-02-01"], "where": "*", "parameters": {}, "notes": ""}
     ]
     model = _make_model_with_date_schedule(schedule, start_date="2020-01-01", nticks=40)
     model.run()
 
     assert len(_calls) == 2
-    assert _calls[0]["tick"] == 9   # Jan 10 - Jan 1 = 9 days
+    assert _calls[0]["tick"] == 9  # Jan 10 - Jan 1 = 9 days
     assert _calls[1]["tick"] == 31  # Feb 1 - Jan 1 = 31 days
 
 
@@ -361,9 +359,7 @@ def test_when_list_of_dates_only_fires_for_in_range_ticks() -> None:
     out-of-range ticks or fires the wrong dates.
     """
     schedule = [
-        {"who": "*", "what": "RecordingIntervention",
-         "when": ["2020-01-05", "2020-12-01"], "where": "*",
-         "parameters": {}, "notes": ""}
+        {"who": "*", "what": "RecordingIntervention", "when": ["2020-01-05", "2020-12-01"], "where": "*", "parameters": {}, "notes": ""}
     ]
     model = _make_model_with_date_schedule(schedule, start_date="2020-01-01", nticks=20)
     model.run()
@@ -380,9 +376,14 @@ def test_when_list_of_dates_preserves_per_firing_who_and_params() -> None:
     the list, exactly as it is for lists of integer ticks.
     """
     schedule = [
-        {"who": ["S"], "what": "RecordingIntervention",
-         "when": ["2020-01-05", "2020-01-15", "2020-01-25"], "where": "*",
-         "parameters": {"dose": 2}, "notes": "supplementary"}
+        {
+            "who": ["S"],
+            "what": "RecordingIntervention",
+            "when": ["2020-01-05", "2020-01-15", "2020-01-25"],
+            "where": "*",
+            "parameters": {"dose": 2},
+            "notes": "supplementary",
+        }
     ]
     model = _make_model_with_date_schedule(schedule, start_date="2020-01-01", nticks=40)
     model.run()
@@ -410,9 +411,7 @@ def test_when_list_of_dates_without_start_date_raises_value_error() -> None:
     p = PropertySet({"nticks": 40, "beta": 0.0, "r_recovery": 0.0})
     model = Model(scenario, p)
     schedule = [
-        {"who": "*", "what": "RecordingIntervention",
-         "when": ["2020-01-10", "2020-01-20"], "where": "*",
-         "parameters": {}, "notes": ""}
+        {"who": "*", "what": "RecordingIntervention", "when": ["2020-01-10", "2020-01-20"], "where": "*", "parameters": {}, "notes": ""}
     ]
     with pytest.raises(ValueError, match="start_date"):
         Campaign(model, schedule)
@@ -434,11 +433,7 @@ def test_when_list_mixed_dates_and_ints_raises_value_error() -> None:
     scenario["R"] = 0
     p = PropertySet({"nticks": 40, "beta": 0.0, "r_recovery": 0.0})
     model = Model(scenario, p)
-    schedule = [
-        {"who": "*", "what": "RecordingIntervention",
-         "when": ["2020-01-10", 15], "where": "*",
-         "parameters": {}, "notes": ""}
-    ]
+    schedule = [{"who": "*", "what": "RecordingIntervention", "when": ["2020-01-10", 15], "where": "*", "parameters": {}, "notes": ""}]
     with pytest.raises(ValueError, match="mix"):
         Campaign(model, schedule, start_date="2020-01-01")
 
@@ -459,9 +454,7 @@ def test_when_list_of_dates_before_start_date_raises_value_error() -> None:
     p = PropertySet({"nticks": 40, "beta": 0.0, "r_recovery": 0.0})
     model = Model(scenario, p)
     schedule = [
-        {"who": "*", "what": "RecordingIntervention",
-         "when": ["2020-01-10", "2019-12-15"], "where": "*",
-         "parameters": {}, "notes": ""}
+        {"who": "*", "what": "RecordingIntervention", "when": ["2020-01-10", "2019-12-15"], "where": "*", "parameters": {}, "notes": ""}
     ]
     with pytest.raises(ValueError, match="before campaign start date"):
         Campaign(model, schedule, start_date="2020-01-01")
@@ -497,7 +490,7 @@ def test_csv_when_as_json_array_of_dates_fires_on_each_date(tmp_path: Path) -> N
     model.run()
 
     assert len(_calls) == 2
-    assert _calls[0]["tick"] == 7   # Jan 8 - Jan 1 = 7 days
+    assert _calls[0]["tick"] == 7  # Jan 8 - Jan 1 = 7 days
     assert _calls[1]["tick"] == 28  # Jan 29 - Jan 1 = 28 days
 
 
@@ -1087,8 +1080,7 @@ def test_add_entry_routes_tick_specific_entry_to_at_tick() -> None:
     Failure means the new entry was either dropped, fired on the wrong tick,
     or shadowed the existing entry.
     """
-    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
-                "parameters": {}, "notes": "initial"}]
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*", "parameters": {}, "notes": "initial"}]
     model = _make_model_for_add_entry(initial, nticks=5)
     campaign = model.components[-1]
 
@@ -1118,8 +1110,7 @@ def test_add_entry_routes_every_tick_entry_to_every_tick() -> None:
 
     Failure means the every-tick routing branch is broken.
     """
-    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
-                "parameters": {}, "notes": "init"}]
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*", "parameters": {}, "notes": "init"}]
     model = _make_model_for_add_entry(initial, nticks=4)
     campaign = model.components[-1]
 
@@ -1175,8 +1166,7 @@ def test_add_entry_dispatchable_from_inside_an_intervention() -> None:
 
     Campaign.register(TriggerIntervention)
 
-    initial = [{"who": "*", "what": "TriggerIntervention", "when": 1, "where": "*",
-                "parameters": {}, "notes": "trigger"}]
+    initial = [{"who": "*", "what": "TriggerIntervention", "when": 1, "where": "*", "parameters": {}, "notes": "trigger"}]
     model = _make_model_for_add_entry(initial, nticks=6)
     model.run()
 
@@ -1193,8 +1183,7 @@ def test_add_entry_rejects_non_scheduled_entry_with_type_error() -> None:
     Failure means dict-shaped inputs are silently accepted and lead to attribute
     errors deep inside Campaign.step when the dispatcher tries `entry.what`.
     """
-    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
-                "parameters": {}, "notes": "init"}]
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*", "parameters": {}, "notes": "init"}]
     model = _make_model_for_add_entry(initial, nticks=3)
     campaign = model.components[-1]
 
@@ -1210,8 +1199,7 @@ def test_add_entry_rejects_unregistered_what_with_value_error() -> None:
     Failure means the validation gate inherited from the construction-time
     validator has been lost for runtime additions.
     """
-    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
-                "parameters": {}, "notes": "init"}]
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*", "parameters": {}, "notes": "init"}]
     model = _make_model_for_add_entry(initial, nticks=3)
     campaign = model.components[-1]
 
@@ -1235,8 +1223,7 @@ def test_add_entry_forwards_who_where_params_and_notes_to_intervention() -> None
     Failure means add_entry mangled fields on the way through (e.g. defaulted
     who/where, dropped params, or coerced notes).
     """
-    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
-                "parameters": {}, "notes": "init"}]
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*", "parameters": {}, "notes": "init"}]
     model = _make_model_for_add_entry(initial, nticks=4)
     campaign = model.components[-1]
 
@@ -1256,9 +1243,9 @@ def test_add_entry_forwards_who_where_params_and_notes_to_intervention() -> None
     matches = [c for c in _calls if c["notes"] == "added-entry-with-fields"]
     assert len(matches) == 1
     call = matches[0]
-    assert call["tick"]   == 2
-    assert call["who"]    == ["S", "R"]
-    assert call["where"]  == [1, 0]
+    assert call["tick"] == 2
+    assert call["who"] == ["S", "R"]
+    assert call["where"] == [1, 0]
     assert call["params"] == {"dose": 7, "round": "spring"}
 
 
@@ -1269,8 +1256,7 @@ def test_add_entry_multiple_entries_same_tick_all_fire_in_added_order() -> None:
 
     Failure means the at_tick bucket either drops entries or reorders them.
     """
-    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*",
-                "parameters": {}, "notes": "init"}]
+    initial = [{"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*", "parameters": {}, "notes": "init"}]
     model = _make_model_for_add_entry(initial, nticks=4)
     campaign = model.components[-1]
 
@@ -1278,8 +1264,11 @@ def test_add_entry_multiple_entries_same_tick_all_fire_in_added_order() -> None:
         campaign.add_entry(
             ScheduleEntry(
                 what="RecordingIntervention",
-                who=None, where=None,
-                params={}, notes=tag, tick=2,
+                who=None,
+                where=None,
+                params={},
+                notes=tag,
+                tick=2,
             )
         )
 
@@ -1313,15 +1302,17 @@ def test_add_entry_for_already_past_tick_never_fires() -> None:
             campaign.add_entry(
                 ScheduleEntry(
                     what="RecordingIntervention",
-                    who=None, where=None,
-                    params={}, notes="too-late", tick=1,
+                    who=None,
+                    where=None,
+                    params={},
+                    notes="too-late",
+                    tick=1,
                 )
             )
 
     Campaign.register(AddPastEntryIntervention)
 
-    initial = [{"who": "*", "what": "AddPastEntryIntervention", "when": 3, "where": "*",
-                "parameters": {}, "notes": "trigger"}]
+    initial = [{"who": "*", "what": "AddPastEntryIntervention", "when": 3, "where": "*", "parameters": {}, "notes": "trigger"}]
     model = _make_model_for_add_entry(initial, nticks=6)
     model.run()
 
@@ -1355,15 +1346,17 @@ def test_add_entry_for_current_tick_does_not_fire_this_tick() -> None:
             campaign.add_entry(
                 ScheduleEntry(
                     what="RecordingIntervention",
-                    who=None, where=None,
-                    params={}, notes="same-tick", tick=tick,
+                    who=None,
+                    where=None,
+                    params={},
+                    notes="same-tick",
+                    tick=tick,
                 )
             )
 
     Campaign.register(SelfRescheduleIntervention)
 
-    initial = [{"who": "*", "what": "SelfRescheduleIntervention", "when": 2, "where": "*",
-                "parameters": {}, "notes": "trigger"}]
+    initial = [{"who": "*", "what": "SelfRescheduleIntervention", "when": 2, "where": "*", "parameters": {}, "notes": "trigger"}]
     model = _make_model_for_add_entry(initial, nticks=5)
     model.run()
 
@@ -1398,8 +1391,11 @@ def test_add_entry_supports_cascading_runtime_additions() -> None:
                 campaign.add_entry(
                     ScheduleEntry(
                         what="CascadeIntervention",
-                        who=None, where=None,
-                        params={}, notes="second", tick=tick + 2,
+                        who=None,
+                        where=None,
+                        params={},
+                        notes="second",
+                        tick=tick + 2,
                     )
                 )
 
@@ -1424,15 +1420,17 @@ def test_add_entry_supports_cascading_runtime_additions() -> None:
                 campaign.add_entry(
                     ScheduleEntry(
                         what="RecordingCascade",
-                        who=None, where=None,
-                        params={}, notes="second", tick=tick + 2,
+                        who=None,
+                        where=None,
+                        params={},
+                        notes="second",
+                        tick=tick + 2,
                     )
                 )
 
     Campaign.register(RecordingCascade)
 
-    initial = [{"who": "*", "what": "RecordingCascade", "when": 1, "where": "*",
-                "parameters": {}, "notes": "first"}]
+    initial = [{"who": "*", "what": "RecordingCascade", "when": 1, "where": "*", "parameters": {}, "notes": "first"}]
     model = _make_model_for_add_entry(initial, nticks=8)
     model.run()
 
@@ -1456,8 +1454,11 @@ def test_add_entry_works_with_empty_initial_schedule() -> None:
     campaign.add_entry(
         ScheduleEntry(
             what="RecordingIntervention",
-            who=None, where=None,
-            params={}, notes="added-after-construction", tick=2,
+            who=None,
+            where=None,
+            params={},
+            notes="added-after-construction",
+            tick=2,
         )
     )
 

@@ -21,11 +21,12 @@ import numpy as np
 import pytest
 
 import laser.core.random
+import laser.cohorts.SIR as SIR
+from laser.cohorts import Campaign, Intervention, Model
+from laser.cohorts.interventions import Vaccination
+from laser.cohorts.utils import PropertyType, get_node_mask
 from laser.core import PropertySet
 from laser.core.utils import grid
-from laser.cohorts import Campaign, Model
-from laser.cohorts.interventions import Vaccination
-import laser.cohorts.SIR as SIR
 from laser.generic.utils import ValuesMap
 
 
@@ -379,6 +380,125 @@ def test_vaccinated_individuals_persist_in_V_after_scheduled_tick() -> None:
     assert int(model.states.V[2, 0]) == 1000
     assert int(model.states.V[3, 0]) == 1000
     assert int(model.states.V[4, 0]) == 1000
+
+
+# ---------------------------------------------------------------------------
+# Multi-character state name: re-implement Vaccination using "vax" instead of "V"
+# ---------------------------------------------------------------------------
+
+
+class VaxIntervention(Intervention):
+    """Vaccination clone that uses the multi-character state name 'vax'.
+
+    Mirrors the built-in `Vaccination` intervention in shape and behaviour —
+    same ``state_selector`` / ``node_selector`` pattern, same vectorised
+    binomial draw and write-back via fancy indexing — but stores vaccinated
+    individuals in a ``vax`` compartment and records dose counts on a
+    ``newly_vaxxed`` node property.  Exercises the full Campaign +
+    StateArray + Model.nodes pipeline against multi-character names.
+    """
+
+    @property
+    def states(self) -> list[str]:
+        return ["vax"]
+
+    @property
+    def properties(self) -> list[PropertyType]:
+        return [("newly_vaxxed", int(self.model.params.nticks), np.int32, 0)]
+
+    def apply(self, tick, who, where, params, notes) -> None:
+        coverage = float(params.get("coverage", 0.0))
+        if not 0.0 <= coverage <= 1.0:
+            raise ValueError(f"VaxIntervention: coverage must be in [0, 1], got {coverage}")
+
+        # Resolve who/where into numpy-indexable selectors (int | slice | mask).
+        state_selector = self.model.states.get_state_mask(who if who is not None else self.model.states.state_names)
+        node_selector = get_node_mask(
+            self.model,
+            where if where is not None else range(len(self.model.scenario)),
+        )
+
+        # Separate [tick+1] indexing handles the mix of basic and advanced
+        # indexing across the state and node axes; the `...` accommodates any
+        # extra dimensions (e.g. age groups) sitting between them.
+        draws = np.random.binomial(
+            self.model.states[tick + 1][state_selector, ..., node_selector],
+            coverage,
+        ).astype(np.int32)
+        self.model.states[tick + 1][state_selector, ..., node_selector] -= draws
+
+        draws = draws.sum(axis=0)  # collapse source-state axis -> per-node totals
+        self.model.states.vax[tick + 1, ..., node_selector] += draws
+        self.model.nodes.newly_vaxxed[tick, node_selector] += draws
+
+        return
+
+
+Campaign.register(VaxIntervention)
+
+
+def test_vax_intervention_end_to_end_with_multi_character_state_name() -> None:
+    """Given a custom intervention that uses the multi-character state name
+    "vax" (and a "newly_vaxxed" node property) instead of the single-character
+    "V" / "newly_vaccinated", when the model is built and run with a
+    coverage=1.0 round at tick 0, then:
+
+    1. The state array allocates a "vax" slab and exposes it via
+       ``model.states.vax``.
+    2. The Model.nodes container exposes ``newly_vaxxed``.
+    3. After tick 0, every susceptible individual has been moved into ``vax``.
+    4. The ``newly_vaxxed`` property records the exact dose count for tick 0
+       and is zero on later ticks.
+    5. The vaccinated cohort is carried forward to subsequent ticks
+       (no decay, no leakage).
+    6. The total population is conserved across the run.
+
+    Failure means StateArray's multi-character name handling, Campaign's
+    state/property aggregation, or Model's allocation of named properties
+    breaks for state names longer than a single character.
+    """
+    nticks = 4
+    schedule = [
+        {
+            "who": ["S"],
+            "what": "VaxIntervention",
+            "when": 0,
+            "where": "*",
+            "parameters": {"coverage": 1.0},
+            "notes": "multi-char state name test",
+        }
+    ]
+    model = _build_model(n_nodes=2, s_per_node=1000, i_per_node=200, nticks=nticks, schedule=schedule)
+
+    # (1) state allocation — both "vax" and the SIR compartments
+    assert "vax" in model.states.state_names
+    assert {"S", "I", "R", "vax"} <= set(model.states.state_names)
+
+    # (2) node property allocation
+    assert hasattr(model.nodes, "newly_vaxxed")
+    assert model.nodes.newly_vaxxed.shape == (nticks, 2)
+
+    total_before = int(model.states[0].sum())
+
+    model.run()
+
+    # (3) every S moved into vax on tick 0
+    assert int(model.states.S[1].sum()) == 0
+    assert int(model.states.vax[1].sum()) == 2 * 1000  # both nodes
+
+    # (4) newly_vaxxed recorded only on the firing tick
+    assert int(model.nodes.newly_vaxxed[0].sum()) == 2 * 1000
+    for t in range(1, nticks):
+        assert int(model.nodes.newly_vaxxed[t].sum()) == 0, f"unexpected vaccinations at tick {t}"
+
+    # (5) carry-forward — vax stays at the post-vaccination level on every later tick
+    for t in range(1, nticks + 1):
+        assert int(model.states.vax[t, 0]) == 1000
+        assert int(model.states.vax[t, 1]) == 1000
+
+    # (6) population is conserved at every tick (SIR + vax all summed)
+    for t in range(nticks + 1):
+        assert int(model.states[t].sum()) == total_before, f"population not conserved at tick {t}"
 
 
 if __name__ == "__main__":

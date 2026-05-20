@@ -78,10 +78,7 @@ def get_node_mask(
     # Materialise once: avoids the generator double-iteration trap below.
     node_arr = np.fromiter(nodes, dtype=np.int32)
     if node_arr.size and (node_arr.min() < 0 or node_arr.max() >= nnodes):
-        raise ValueError(
-            f"node ids {node_arr[(node_arr < 0) | (node_arr >= nnodes)].tolist()} "
-            f"out of range [0, {nnodes})"
-        )
+        raise ValueError(f"node ids {node_arr[(node_arr < 0) | (node_arr >= nnodes)].tolist()} out of range [0, {nnodes})")
 
     # Fast-path for "all nodes": every id in [0, nnodes) is present (duplicates OK).
     if node_arr.size >= nnodes and np.unique(node_arr).size == nnodes:

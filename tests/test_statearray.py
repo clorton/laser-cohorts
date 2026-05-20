@@ -1487,7 +1487,7 @@ class TestGetStateMask:
 
         # then
         assert isinstance(idx, int)
-        assert idx == 0   # "S" is the first name in NAMES
+        assert idx == 0  # "S" is the first name in NAMES
 
         return
 
@@ -1635,7 +1635,7 @@ class TestGetStateMask:
         sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
 
         # when
-        mask = sa.get_state_mask(("S", "I"))   # tuple, not list
+        mask = sa.get_state_mask(("S", "I"))  # tuple, not list
 
         # then — S is index 0, I is index 2
         expected = np.array([True, False, True, False, False, False])
@@ -1657,7 +1657,7 @@ class TestGetStateMask:
 
         # when / then
         with pytest.raises(TypeError, match="string or iterable"):
-            sa.get_state_mask(5)   # ints are not state names
+            sa.get_state_mask(5)  # ints are not state names
 
         return
 
@@ -1674,7 +1674,7 @@ class TestGetStateMask:
 
         # when / then
         with pytest.raises(TypeError, match="must contain strings"):
-            sa.get_state_mask(["S", 1])   # mixed types
+            sa.get_state_mask(["S", 1])  # mixed types
 
         return
 
@@ -1718,6 +1718,270 @@ class TestGetStateMask:
         assert selected.shape == (2, NUM_PATCHES)
         assert np.array_equal(selected[0], sa.view(np.ndarray)[0])
         assert np.array_equal(selected[1], sa.view(np.ndarray)[3])
+
+        return
+
+
+# ---------------------------------------------------------------------------
+# Multi-character state names — e.g. "vax" for vaccinated, "mat" for maternal
+# antibody protection.  Mirrors the single-character SEIRVM coverage above so
+# regressions affecting multi-character names show up cleanly side-by-side.
+# ---------------------------------------------------------------------------
+
+MULTI_NAMES = ["sus", "exp", "inf", "rec", "vax", "mat"]
+
+
+class TestMultiCharacterStateNames:
+    """StateArray must treat multi-character state names exactly like single-character ones."""
+
+    def test_construction_accepts_multi_character_names(self) -> None:
+        """Given a list of multi-character state names that are valid Python
+        identifiers and do not collide with ``ndarray`` attributes, when a
+        StateArray is constructed, then it is created successfully and
+        registers every name.
+
+        Failure means the identifier check or attribute-collision check is too
+        strict, or that the name registry is not populated for longer strings.
+        """
+        # given / when
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # then
+        assert sa.state_names == tuple(MULTI_NAMES)
+        assert sa.shape == (len(MULTI_NAMES), NUM_PATCHES)
+
+        return
+
+    def test_named_attribute_access_works_for_multi_character_names(self) -> None:
+        """Given a StateArray with multi-character names, when each name is
+        accessed as an attribute, then the returned row is the matching state
+        slice (a plain ``ndarray`` view).
+
+        Failure means the cached state-view dictionary is built incorrectly
+        for names longer than one character, or attribute lookup mishandles
+        them.
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when
+        rows = [getattr(sa, name) for name in MULTI_NAMES]
+
+        # then — each is a 1-D ndarray view of length NUM_PATCHES
+        for row in rows:
+            assert isinstance(row, np.ndarray)
+            assert row.shape == (NUM_PATCHES,)
+            assert (row == 0).all()
+
+        return
+
+    def test_named_write_updates_the_correct_multi_character_row(self) -> None:
+        """Given a StateArray with multi-character names, when ``sa.vax = 5``,
+        then row "vax" becomes all 5 and every other row remains 0.
+
+        Verifies that the attribute-write path resolves multi-character names
+        to the correct row index and does not bleed into neighbouring states.
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when
+        sa.vax = 5
+
+        # then
+        vax_idx = MULTI_NAMES.index("vax")
+        for i, name in enumerate(MULTI_NAMES):
+            row = sa.view(np.ndarray)[i]
+            if i == vax_idx:
+                assert (row == 5).all(), f"row '{name}' should have been written"
+            else:
+                assert (row == 0).all(), f"row '{name}' should be untouched"
+
+        return
+
+    def test_get_state_index_returns_correct_index_for_multi_character_names(self) -> None:
+        """Given a StateArray with multi-character names, when get_state_index
+        is called for each name, then the result matches the position of the
+        name in MULTI_NAMES.
+
+        A spot-check that the name → index map survives names longer than one
+        character.
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when / then
+        for expected_idx, name in enumerate(MULTI_NAMES):
+            assert sa.get_state_index(name) == expected_idx
+
+        # unknown name still returns None
+        assert sa.get_state_index("nope") is None
+
+        return
+
+    def test_get_state_mask_scalar_string_returns_int_for_multi_character_name(self) -> None:
+        """Given a StateArray with multi-character names, when get_state_mask
+        is called with a single name like "mat", then the result is the
+        integer index of that state.
+
+        Failure means the scalar-string fast path treats multi-character names
+        differently from single-character ones — e.g. iterating them char by
+        char or returning a mask.
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when
+        idx = sa.get_state_mask("mat")
+
+        # then
+        assert isinstance(idx, int)
+        assert idx == MULTI_NAMES.index("mat")
+
+        return
+
+    def test_get_state_mask_subset_returns_correct_mask_for_multi_character_names(self) -> None:
+        """Given a StateArray with multi-character names, when get_state_mask
+        is called with a subset like ["vax", "mat"], then a boolean mask is
+        returned with True at the corresponding positions and False elsewhere.
+
+        Cross-checks the subset/mask branch on names where individual
+        characters would otherwise be misinterpreted as state identifiers.
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask(["vax", "mat"])
+
+        # then
+        expected = np.array([name in ("vax", "mat") for name in MULTI_NAMES])
+        assert isinstance(mask, np.ndarray)
+        assert mask.dtype == bool
+        assert np.array_equal(mask, expected)
+
+        return
+
+    def test_get_state_mask_all_multi_character_names_returns_slice(self) -> None:
+        """Given a StateArray with multi-character names, when get_state_mask
+        is called with every registered name, then the result is
+        ``slice(None)``.
+
+        Confirms the exhaustive-selector fast path is wired up against the
+        multi-character name registry (not just single characters).
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when
+        result = sa.get_state_mask(MULTI_NAMES)
+
+        # then
+        assert result == slice(None)
+
+        return
+
+    def test_unknown_multi_character_name_raises_value_error(self) -> None:
+        """Given a StateArray with multi-character names, when get_state_mask
+        is called with an unregistered name like "Z", then a ValueError is
+        raised that mentions the bad name.
+
+        Mirrors the single-character coverage so that adding longer names
+        does not loosen the validation gate.
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when / then
+        with pytest.raises(ValueError, match="zzz"):
+            sa.get_state_mask("zzz")
+
+        return
+
+    def test_multi_character_name_does_not_match_substring(self) -> None:
+        """Given a StateArray with names containing "exp", when get_state_mask
+        is called with a substring like "ex" or "expense", then a ValueError
+        is raised.
+
+        Guards against any accidental substring/startswith matching of state
+        names; only exact string equality should resolve to an index.
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when / then
+        with pytest.raises(ValueError, match="ex"):
+            sa.get_state_mask("ex")  # prefix of "exp"
+        with pytest.raises(ValueError, match="expense"):
+            sa.get_state_mask("expense")  # contains "exp"
+
+        return
+
+    def test_multi_character_attribute_access_does_not_match_substring(self) -> None:
+        """Given a StateArray with names like "exp" and "inf", when an attribute
+        access uses a prefix (``sa.ex``) or an unregistered name (``sa.expense``),
+        then ``AttributeError`` is raised.
+
+        Validates that attribute lookup is strict equality against the
+        registered names, not a prefix/contains check.
+        """
+        # given
+        sa = StateArray(MULTI_NAMES, 0, shape=(len(MULTI_NAMES), NUM_PATCHES))
+
+        # when / then
+        with pytest.raises(AttributeError):
+            _ = sa.ex
+        with pytest.raises(AttributeError):
+            _ = sa.expense
+
+        return
+
+    def test_mixed_length_state_names_are_accepted(self) -> None:
+        """Given a StateArray whose state names mix single- and multi-character
+        identifiers (e.g. ["S", "E", "I", "R", "vax", "mat"]), when the array
+        is constructed and accessed by name, then every name resolves to the
+        correct row regardless of its length.
+
+        Catches any implicit assumption that all state names share a single
+        length (e.g. char-array packing or fixed-width string handling).
+        """
+        # given
+        mixed = ["S", "E", "I", "R", "vax", "mat"]
+        sa = StateArray(mixed, 0, source_array=np.arange(len(mixed) * NUM_PATCHES, dtype=np.int64).reshape(len(mixed), NUM_PATCHES))
+
+        # when / then
+        for i, name in enumerate(mixed):
+            assert sa.get_state_index(name) == i
+            assert np.array_equal(getattr(sa, name), sa.view(np.ndarray)[i])
+
+        return
+
+    def test_three_d_layout_with_multi_character_names(self) -> None:
+        """Given a 3-D ``(nticks, nstates, npatches)`` StateArray with
+        multi-character state names, when a name is read and written, then
+        the operation targets exactly the matching state slab.
+
+        Re-runs the canonical 3-D layout check with longer state names to
+        make sure the cached views still resolve to the right slice when the
+        state axis is not the leading axis.
+        """
+        # given
+        sa = StateArray(
+            MULTI_NAMES,
+            state_axis=1,
+            shape=(NUM_TICKS, len(MULTI_NAMES), NUM_PATCHES),
+        )
+
+        # when — write into "vax" only
+        sa.vax = 7
+
+        # then — "vax" slab is all 7, every other slab still 0
+        for i, name in enumerate(MULTI_NAMES):
+            slab = sa.view(np.ndarray)[:, i, :]
+            if name == "vax":
+                assert (slab == 7).all()
+            else:
+                assert (slab == 0).all()
 
         return
 

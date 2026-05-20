@@ -38,6 +38,7 @@ if isValid && isAllowed && isSecure {
 - Always use double quotes unless already inside a quoted string
 - Always use pathlib rather than os.path as long as possible
 - Always import logger from .logging and frequently log as INFO level internal actions.
+- Always finish methods with a return, even if the method does not return a value.
 ## Documentation - docstrings
 - Always use Google style docstrings formatted for markdown (not restructuredtext)
 - Always include information on exceptions explicitly raised in the code

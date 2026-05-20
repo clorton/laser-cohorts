@@ -50,7 +50,7 @@ class NonDiseaseMortality:
         """
         self.model = model
         if np.isscalar(r_mortality):
-            self.r_mortality = ValuesMap.from_scalar(r_mortality, model.params.nticks, len(model.scenario)) # type: ignore
+            self.r_mortality = ValuesMap.from_scalar(r_mortality, model.params.nticks, len(model.scenario))  # type: ignore
         else:
             self.r_mortality = r_mortality
         self._requested_states = set(states) if states is not None else None
@@ -67,7 +67,7 @@ class NonDiseaseMortality:
         ``step`` can select all target states in one vectorised operation.
         """
         # None means all and all means all
-        if (self._requested_states is None) or (set(self._requested_states) == set(self.model.states.state_names)): # type: ignore
+        if (self._requested_states is None) or (set(self._requested_states) == set(self.model.states.state_names)):  # type: ignore
             mask = slice(None)  # equivalent to `:`
         else:
             mask = self.model.states.get_state_mask(list(self._requested_states))
@@ -94,7 +94,7 @@ class NonDiseaseMortality:
         Args:
             tick (int): Current simulation tick (0-indexed).
         """
-        probability = -np.expm1(-self.r_mortality[tick]) # type: ignore
+        probability = -np.expm1(-self.r_mortality[tick])  # type: ignore
         states_at_tick = self.model.states[tick + 1]  # view: (nstates, nnodes)
         active = states_at_tick[self._state_mask]  # copy: (n_active, nnodes)
         mortality = np.random.binomial(active, probability).astype(np.int32)
@@ -118,7 +118,7 @@ class NonDiseaseMortality:
         Returns:
             list[PropertyType]: ``[("non_disease_mortality", nticks, np.int32, 0)]``
         """
-        return [("non_disease_mortality", self.model.params.nticks, np.int32, 0)] # type: ignore
+        return [("non_disease_mortality", self.model.params.nticks, np.int32, 0)]  # type: ignore
 
     @property
     def states(self) -> list[str]:
@@ -195,7 +195,7 @@ class ConstantPopBirths:
         Returns:
             list[PropertyType]: ``[("non_disease_mortality", nticks, np.int32, 0)]``
         """
-        return [("non_disease_mortality", self.model.params.nticks, np.int32, 0)] # type: ignore
+        return [("non_disease_mortality", self.model.params.nticks, np.int32, 0)]  # type: ignore
 
     @property
     def states(self) -> list[str]:

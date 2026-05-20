@@ -108,9 +108,7 @@ def _validate_who_value(value) -> None:
         return
     if isinstance(value, list) and all(isinstance(v, str) for v in value):
         return
-    raise ValueError(
-        f"Invalid 'who' value {value!r}: use '*', a single string, or a list of strings."
-    )
+    raise ValueError(f"Invalid 'who' value {value!r}: use '*', a single string, or a list of strings.")
 
 
 def _validate_where_value(value) -> None:
@@ -126,13 +124,9 @@ def _validate_where_value(value) -> None:
     if isinstance(value, list):
         for v in value:
             if not _is_int_like(v):
-                raise ValueError(
-                    f"Invalid 'where' list element {v!r}: list elements must be ints."
-                )
+                raise ValueError(f"Invalid 'where' list element {v!r}: list elements must be ints.")
         return
-    raise ValueError(
-        f"Invalid 'where' value {value!r}: use '*', an int, or a list of ints."
-    )
+    raise ValueError(f"Invalid 'where' value {value!r}: use '*', an int, or a list of ints.")
 
 
 def _validate_when_value(value) -> None:
@@ -157,20 +151,11 @@ def _validate_when_value(value) -> None:
             elif _is_int_like(v):
                 has_int = True
             else:
-                raise ValueError(
-                    f"Invalid 'when' list element {v!r}: list elements must be ints or "
-                    "'YYYY-MM-DD' date strings."
-                )
+                raise ValueError(f"Invalid 'when' list element {v!r}: list elements must be ints or 'YYYY-MM-DD' date strings.")
         if has_date and has_int:
-            raise ValueError(
-                "Campaign 'when' list mixes date strings and integer ticks. "
-                "Use either dates or integers consistently."
-            )
+            raise ValueError("Campaign 'when' list mixes date strings and integer ticks. Use either dates or integers consistently.")
         return
-    raise ValueError(
-        f"Invalid 'when' value {value!r}: use '*', an int, a 'YYYY-MM-DD' date string, "
-        "or a list of ints / date strings."
-    )
+    raise ValueError(f"Invalid 'when' value {value!r}: use '*', an int, a 'YYYY-MM-DD' date string, or a list of ints / date strings.")
 
 
 def _normalize_when(raw, start_date: date | None = None) -> list[int] | None:
@@ -479,19 +464,11 @@ class Campaign:
         """
         for entry in raw:
             if "who" not in entry:
-                raise ValueError(
-                    "Campaign schedule entry is missing the required 'who' field. "
-                    "Use '*' to target all states explicitly."
-                )
+                raise ValueError("Campaign schedule entry is missing the required 'who' field. Use '*' to target all states explicitly.")
             if "what" not in entry:
-                raise ValueError(
-                    "Campaign schedule entry is missing the required 'what' field."
-                )
+                raise ValueError("Campaign schedule entry is missing the required 'what' field.")
             if "where" not in entry:
-                raise ValueError(
-                    "Campaign schedule entry is missing the required 'where' field. "
-                    "Use '*' to target all nodes explicitly."
-                )
+                raise ValueError("Campaign schedule entry is missing the required 'where' field. Use '*' to target all nodes explicitly.")
             _validate_who_value(entry["who"])
             _validate_where_value(entry["where"])
             _validate_when_value(entry.get("when", "*"))
@@ -528,13 +505,10 @@ class Campaign:
         if any_date:
             if any_int:
                 raise ValueError(
-                    "Campaign schedule mixes date strings and integer ticks in 'when'. "
-                    "Use either dates or integers consistently."
+                    "Campaign schedule mixes date strings and integer ticks in 'when'. Use either dates or integers consistently."
                 )
             if self._start_date is None:
-                raise ValueError(
-                    "Campaign has date-valued 'when' entries but start_date was not provided."
-                )
+                raise ValueError("Campaign has date-valued 'when' entries but start_date was not provided.")
 
             for w in whens:
                 items = w if isinstance(w, list) else [w]
@@ -542,10 +516,7 @@ class Campaign:
                     if _is_date_like(item):
                         d = _parse_date(item)
                         if d < self._start_date:
-                            raise ValueError(
-                                f"Intervention date ({d:%Y-%m-%d}) is before campaign "
-                                f"start date {self._start_date:%Y-%m-%d}."
-                            )
+                            raise ValueError(f"Intervention date ({d:%Y-%m-%d}) is before campaign start date {self._start_date:%Y-%m-%d}.")
 
     def _parse_entries(self, raw: list[dict]) -> list[ScheduleEntry]:
         """Convert pre-validated schedule entries into the tick-indexed form.
@@ -614,14 +585,9 @@ class Campaign:
             ValueError: If ``entry.what`` is not a registered intervention.
         """
         if not isinstance(entry, ScheduleEntry):
-            raise TypeError(
-                f"add_entry expects a ScheduleEntry, got {type(entry).__name__}"
-            )
+            raise TypeError(f"add_entry expects a ScheduleEntry, got {type(entry).__name__}")
         if entry.what not in self._registry:
-            raise ValueError(
-                f"Intervention '{entry.what}' is not registered. "
-                "Call Campaign.register(<class>) before scheduling it."
-            )
+            raise ValueError(f"Intervention '{entry.what}' is not registered. Call Campaign.register(<class>) before scheduling it.")
         if entry.tick is None:
             self._every_tick.append(entry)
         else:

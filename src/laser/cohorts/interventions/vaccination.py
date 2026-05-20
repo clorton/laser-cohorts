@@ -56,7 +56,7 @@ class Vaccination(Intervention):
         Returns:
             list[PropertyType]: ``[("newly_vaccinated", nticks, np.int32, 0)]``
         """
-        return [("newly_vaccinated", int(self.model.params.nticks), np.int32, 0)] # type: ignore  # pyright: ignore[reportOptionalMemberAccess]
+        return [("newly_vaccinated", int(self.model.params.nticks), np.int32, 0)]  # type: ignore  # pyright: ignore[reportOptionalMemberAccess]
 
     def apply(
         self,
@@ -97,11 +97,11 @@ class Vaccination(Intervention):
         # separate [tick+1] indexing handles mixed basic and advanced indexing:
         # https://numpy.org/doc/stable/user/basics.indexing.html#combining-advanced-and-basic-indexing
         # ... accounts for any extra dimensions, thinking primarily about age groups
-        draws = np.random.binomial(self.model.states[tick+1][state_selector,...,node_selector], coverage).astype(np.int32)
-        self.model.states[tick+1][state_selector,...,node_selector] -= draws
-        draws = draws.sum(axis=0) # sum across source states
-        self.model.states.V[tick+1,...,node_selector] += draws
-        self.model.nodes.newly_vaccinated[tick,node_selector] += draws
+        draws = np.random.binomial(self.model.states[tick + 1][state_selector, ..., node_selector], coverage).astype(np.int32)
+        self.model.states[tick + 1][state_selector, ..., node_selector] -= draws
+        draws = draws.sum(axis=0)  # sum across source states
+        self.model.states.V[tick + 1, ..., node_selector] += draws
+        self.model.nodes.newly_vaccinated[tick, node_selector] += draws
 
         logger.info(
             "Vaccination tick %d: vaccinated %d total across %d nodes",

@@ -301,18 +301,12 @@ class StateArray(np.ndarray):
         if isinstance(states, str):
             idx = self.get_state_index(states)
             if idx is None:
-                raise ValueError(
-                    f"'{states}' is not a valid state for this StateArray, "
-                    f"must be one of {all_states}"
-                )
+                raise ValueError(f"'{states}' is not a valid state for this StateArray, must be one of {all_states}")
             return idx
 
         # Anything non-string must be iterable.
         if not isinstance(states, Iterable):
-            raise TypeError(
-                f"'states' must be a string or iterable of strings, "
-                f"got {type(states).__name__}: {states!r}"
-            )
+            raise TypeError(f"'states' must be a string or iterable of strings, got {type(states).__name__}: {states!r}")
 
         # Materialise once so generators / one-shot iterables work safely.
         state_list = list(states)
@@ -320,15 +314,9 @@ class StateArray(np.ndarray):
         # Per-element validation up-front so error messages are precise.
         for s in state_list:
             if not isinstance(s, str):
-                raise TypeError(
-                    f"'states' iterable must contain strings, "
-                    f"got {type(s).__name__}: {s!r}"
-                )
+                raise TypeError(f"'states' iterable must contain strings, got {type(s).__name__}: {s!r}")
             if s not in all_states:
-                raise ValueError(
-                    f"'{s}' is not a valid state for this StateArray, "
-                    f"must be one of {all_states}"
-                )
+                raise ValueError(f"'{s}' is not a valid state for this StateArray, must be one of {all_states}")
 
         # Exhaustive selection -> slice(None).  Duplicates in `states` are OK.
         if set(state_list) == set(all_states):
