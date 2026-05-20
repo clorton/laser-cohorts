@@ -1470,23 +1470,24 @@ class TestConstructionPaths:
 class TestGetStateMask:
     """Boolean mask generation for a subset of named state compartments."""
 
-    def test_single_string_sets_one_position_true(self) -> None:
-        """Given an SEIR StateArray and the string "I", when get_state_mask("I")
-        is called, then the result is a boolean array with True only at position 2.
+    def test_single_string_returns_int_index(self) -> None:
+        """Given an SEIR StateArray and a single state name (scalar str), when
+        get_state_mask is called, then the result is the integer index of that
+        state along the state axis.
 
-        Failure means a bare string is not normalised to a single-element list,
-        or the wrong index is set.
+        A scalar selector drops the axis; failure means the caller would get a
+        length-1 mask instead of an int and would unintentionally keep the
+        state axis when indexing.
         """
         # given
         sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
 
         # when
-        mask = sa.get_state_mask("S")
+        idx = sa.get_state_mask("S")
 
         # then
-        expected = np.array([True, False, False, False, False, False])
-        assert mask.dtype == bool
-        assert np.array_equal(mask, expected)
+        assert isinstance(idx, int)
+        assert idx == 0   # "S" is the first name in NAMES
 
         return
 
@@ -1529,22 +1530,22 @@ class TestGetStateMask:
 
         return
 
-    def test_all_states_returns_all_true_mask(self) -> None:
-        """Given a StateArray and a list of all registered state names, when
-        get_state_mask is called, then every position in the mask is True.
+    def test_all_states_returns_slice_none(self) -> None:
+        """Given a StateArray and a list containing every registered state name,
+        when get_state_mask is called, then the result is ``slice(None)``.
 
-        Failure means some states are not found or not set, which would silently
-        exclude compartments from an intended all-state operation.
+        An exhaustive selector takes the fast path so callers can avoid the cost
+        of building and applying a fully-True boolean mask.  Failure means the
+        function returned a mask, which is correct but wastes the optimisation.
         """
         # given
         sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
 
         # when
-        mask = sa.get_state_mask(list(NAMES))
+        result = sa.get_state_mask(list(NAMES))
 
         # then
-        assert mask.all()
-        assert len(mask) == NUM_STATES
+        assert result == slice(None)
 
         return
 
@@ -1568,19 +1569,23 @@ class TestGetStateMask:
         return
 
     def test_mask_length_equals_number_of_states(self) -> None:
-        """Given any valid StateArray, when get_state_mask is called, then the
-        returned mask has exactly as many elements as there are registered states.
+        """Given a StateArray, when get_state_mask is called with a non-exhaustive
+        list of state names, then the returned mask has exactly as many elements
+        as there are registered states.
 
-        Failure means the mask is sized incorrectly and cannot be used as a
-        direct boolean index along the state axis.
+        The mask path always returns a length-``n_states`` boolean array so it
+        can be used directly as a numpy boolean index along the state axis.
+        Failure means the mask is sized incorrectly.
         """
         # given
         sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
 
-        # when
-        mask = sa.get_state_mask("E")
+        # when — non-exhaustive list selects mask branch
+        mask = sa.get_state_mask(["E", "I"])
 
         # then
+        assert isinstance(mask, np.ndarray)
+        assert mask.dtype == bool
         assert len(mask) == NUM_STATES
 
         return
@@ -1617,20 +1622,80 @@ class TestGetStateMask:
 
         return
 
-    def test_non_list_non_string_input_raises_value_error(self) -> None:
-        """Given a StateArray, when get_state_mask is called with a tuple instead
-        of a string or list, then a ValueError is raised.
+    def test_tuple_of_state_names_returns_mask(self) -> None:
+        """Given a StateArray, when get_state_mask is called with a tuple of
+        valid state names, then the result is a boolean mask with True at the
+        corresponding indices.
 
-        # Exercises a bug-fix: the original implementation referenced the undefined
-        # variable `state` (instead of `states`) in the type-check error message,
-        # which would raise NameError rather than the intended ValueError.
+        Any iterable of strings is accepted (per the new API), so a tuple is a
+        valid input form — distinct from the scalar-string fast path which
+        returns an int.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when
+        mask = sa.get_state_mask(("S", "I"))   # tuple, not list
+
+        # then — S is index 0, I is index 2
+        expected = np.array([True, False, True, False, False, False])
+        assert isinstance(mask, np.ndarray)
+        assert mask.dtype == bool
+        assert np.array_equal(mask, expected)
+
+        return
+
+    def test_non_iterable_input_raises_type_error(self) -> None:
+        """Given a StateArray, when get_state_mask is called with a value that is
+        neither a string nor an iterable (e.g. an int), then a TypeError is raised.
+
+        Failure means a non-iterable selector is silently accepted, leading to
+        confusing downstream errors instead of an early, clear rejection.
         """
         # given
         sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
 
         # when / then
-        with pytest.raises(ValueError, match="must be a string or list"):
-            sa.get_state_mask(("S", "I"))  # tuple, not list
+        with pytest.raises(TypeError, match="string or iterable"):
+            sa.get_state_mask(5)   # ints are not state names
+
+        return
+
+    def test_iterable_with_non_string_element_raises_type_error(self) -> None:
+        """Given a StateArray, when get_state_mask is called with an iterable
+        that contains a non-string element, then a TypeError is raised that
+        mentions the offending element.
+
+        Per-element validation catches typos like ``[\"S\", 1]`` early, before
+        the mask-building loop hits an `index` lookup error.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when / then
+        with pytest.raises(TypeError, match="must contain strings"):
+            sa.get_state_mask(["S", 1])   # mixed types
+
+        return
+
+    def test_generator_is_consumed_exactly_once(self) -> None:
+        """Given a one-shot generator yielding state names, when get_state_mask
+        is called, then the result reflects every yielded name.
+
+        The function materialises the iterable internally, so generators (or
+        any other one-shot iterable) work correctly.  Failure indicates the
+        input is iterated more than once and produces an under-populated mask.
+        """
+        # given
+        sa = StateArray(NAMES, 0, shape=(NUM_STATES, NUM_PATCHES))
+
+        # when — generator yields "E" and "R" exactly once
+        gen = (s for s in ["E", "R"])
+        mask = sa.get_state_mask(gen)
+
+        # then — E is index 1, R is index 3
+        expected = np.array([False, True, False, True, False, False])
+        assert np.array_equal(mask, expected)
 
         return
 

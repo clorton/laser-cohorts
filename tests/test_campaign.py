@@ -24,7 +24,7 @@ from pathlib import Path
 
 from laser.core import PropertySet
 from laser.core.utils import grid
-from laser.cohorts import Campaign, Intervention, Model, ScheduledEntry
+from laser.cohorts import Campaign, Intervention, Model, ScheduleEntry
 import laser.cohorts.SIR as SIR
 from laser.generic.utils import ValuesMap
 
@@ -1081,7 +1081,7 @@ def _make_model_for_add_entry(initial_schedule, nticks: int = 5) -> Model:
 
 def test_add_entry_routes_tick_specific_entry_to_at_tick() -> None:
     """Given a Campaign with a single initial entry at tick 0, when add_entry
-    is called with a ScheduledEntry for tick 3, then the entry fires on tick 3
+    is called with a ScheduleEntry for tick 3, then the entry fires on tick 3
     in addition to the original entry at tick 0.
 
     Failure means the new entry was either dropped, fired on the wrong tick,
@@ -1092,7 +1092,7 @@ def test_add_entry_routes_tick_specific_entry_to_at_tick() -> None:
     model = _make_model_for_add_entry(initial, nticks=5)
     campaign = model.components[-1]
 
-    new_entry = ScheduledEntry(
+    new_entry = ScheduleEntry(
         what="RecordingIntervention",
         who=None,
         where=None,
@@ -1113,7 +1113,7 @@ def test_add_entry_routes_tick_specific_entry_to_at_tick() -> None:
 
 def test_add_entry_routes_every_tick_entry_to_every_tick() -> None:
     """Given a Campaign with no every-tick entries, when add_entry is called
-    with a ScheduledEntry whose tick is None, then the entry fires on every
+    with a ScheduleEntry whose tick is None, then the entry fires on every
     subsequent tick.
 
     Failure means the every-tick routing branch is broken.
@@ -1123,7 +1123,7 @@ def test_add_entry_routes_every_tick_entry_to_every_tick() -> None:
     model = _make_model_for_add_entry(initial, nticks=4)
     campaign = model.components[-1]
 
-    every_tick = ScheduledEntry(
+    every_tick = ScheduleEntry(
         what="RecordingIntervention",
         who=None,
         where=None,
@@ -1163,7 +1163,7 @@ def test_add_entry_dispatchable_from_inside_an_intervention() -> None:
             # locate campaign and schedule a follow-up at tick + 2
             campaign = next(c for c in self.model.components if isinstance(c, Campaign))
             campaign.add_entry(
-                ScheduledEntry(
+                ScheduleEntry(
                     what="RecordingIntervention",
                     who=None,
                     where=None,
@@ -1187,7 +1187,7 @@ def test_add_entry_dispatchable_from_inside_an_intervention() -> None:
 
 
 def test_add_entry_rejects_non_scheduled_entry_with_type_error() -> None:
-    """Given a plain dict passed to add_entry instead of a ScheduledEntry,
+    """Given a plain dict passed to add_entry instead of a ScheduleEntry,
     when add_entry is invoked, then a TypeError is raised.
 
     Failure means dict-shaped inputs are silently accepted and lead to attribute
@@ -1198,12 +1198,12 @@ def test_add_entry_rejects_non_scheduled_entry_with_type_error() -> None:
     model = _make_model_for_add_entry(initial, nticks=3)
     campaign = model.components[-1]
 
-    with pytest.raises(TypeError, match="ScheduledEntry"):
+    with pytest.raises(TypeError, match="ScheduleEntry"):
         campaign.add_entry({"what": "RecordingIntervention"})
 
 
 def test_add_entry_rejects_unregistered_what_with_value_error() -> None:
-    """Given a ScheduledEntry whose 'what' names an unregistered intervention,
+    """Given a ScheduleEntry whose 'what' names an unregistered intervention,
     when add_entry is invoked, then a ValueError is raised that mentions the
     bad name.
 
@@ -1215,7 +1215,7 @@ def test_add_entry_rejects_unregistered_what_with_value_error() -> None:
     model = _make_model_for_add_entry(initial, nticks=3)
     campaign = model.components[-1]
 
-    bad_entry = ScheduledEntry(
+    bad_entry = ScheduleEntry(
         what="DoesNotExist",
         who=None,
         where=None,
@@ -1228,7 +1228,7 @@ def test_add_entry_rejects_unregistered_what_with_value_error() -> None:
 
 
 def test_add_entry_forwards_who_where_params_and_notes_to_intervention() -> None:
-    """Given a ScheduledEntry with explicit who, where, params, and notes, when
+    """Given a ScheduleEntry with explicit who, where, params, and notes, when
     add_entry schedules it and the model runs to the firing tick, then the
     intervention's apply receives those exact values.
 
@@ -1241,7 +1241,7 @@ def test_add_entry_forwards_who_where_params_and_notes_to_intervention() -> None
     campaign = model.components[-1]
 
     campaign.add_entry(
-        ScheduledEntry(
+        ScheduleEntry(
             what="RecordingIntervention",
             who=["S", "R"],
             where=[1, 0],
@@ -1276,7 +1276,7 @@ def test_add_entry_multiple_entries_same_tick_all_fire_in_added_order() -> None:
 
     for tag in ("alpha", "beta", "gamma"):
         campaign.add_entry(
-            ScheduledEntry(
+            ScheduleEntry(
                 what="RecordingIntervention",
                 who=None, where=None,
                 params={}, notes=tag, tick=2,
@@ -1290,7 +1290,7 @@ def test_add_entry_multiple_entries_same_tick_all_fire_in_added_order() -> None:
 
 
 def test_add_entry_for_already_past_tick_never_fires() -> None:
-    """Given a ScheduledEntry added for a tick that has already been stepped
+    """Given a ScheduleEntry added for a tick that has already been stepped
     past, when the model continues running, then the entry never fires.
 
     Past ticks are unreachable — Campaign.step only ever fetches the bucket
@@ -1311,7 +1311,7 @@ def test_add_entry_for_already_past_tick_never_fires() -> None:
             # at tick 3, schedule a never-firing recording for tick 1
             campaign = next(c for c in self.model.components if isinstance(c, Campaign))
             campaign.add_entry(
-                ScheduledEntry(
+                ScheduleEntry(
                     what="RecordingIntervention",
                     who=None, where=None,
                     params={}, notes="too-late", tick=1,
@@ -1353,7 +1353,7 @@ def test_add_entry_for_current_tick_does_not_fire_this_tick() -> None:
         def apply(self, tick, who, where, params, notes):
             campaign = next(c for c in self.model.components if isinstance(c, Campaign))
             campaign.add_entry(
-                ScheduledEntry(
+                ScheduleEntry(
                     what="RecordingIntervention",
                     who=None, where=None,
                     params={}, notes="same-tick", tick=tick,
@@ -1396,7 +1396,7 @@ def test_add_entry_supports_cascading_runtime_additions() -> None:
             if notes == "first":
                 campaign = next(c for c in self.model.components if isinstance(c, Campaign))
                 campaign.add_entry(
-                    ScheduledEntry(
+                    ScheduleEntry(
                         what="CascadeIntervention",
                         who=None, where=None,
                         params={}, notes="second", tick=tick + 2,
@@ -1422,7 +1422,7 @@ def test_add_entry_supports_cascading_runtime_additions() -> None:
             if notes == "first":
                 campaign = next(c for c in self.model.components if isinstance(c, Campaign))
                 campaign.add_entry(
-                    ScheduledEntry(
+                    ScheduleEntry(
                         what="RecordingCascade",
                         who=None, where=None,
                         params={}, notes="second", tick=tick + 2,
@@ -1454,7 +1454,7 @@ def test_add_entry_works_with_empty_initial_schedule() -> None:
     campaign = model.components[-1]
 
     campaign.add_entry(
-        ScheduledEntry(
+        ScheduleEntry(
             what="RecordingIntervention",
             who=None, where=None,
             params={}, notes="added-after-construction", tick=2,

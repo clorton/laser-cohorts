@@ -13,7 +13,7 @@ import logging
 import numpy as np
 
 from laser.cohorts.campaign import Intervention
-from laser.cohorts.utils import PropertyType
+from laser.cohorts.utils import PropertyType, get_node_mask
 
 logger = logging.getLogger(__name__)
 
@@ -90,37 +90,22 @@ class Vaccination(Intervention):
         if not 0.0 <= coverage <= 1.0:
             raise ValueError(f"Vaccination: coverage must be in [0, 1], got {coverage}")
 
-        all_state_names = list(self.model.states.state_names or [])
-        target_states = who if who is not None else all_state_names
+        state_selector = self.model.states.get_state_mask(who if who is not None else self.model.states.state_names)
 
-        nnodes = len(self.model.scenario)
-        target_nodes = where if where is not None else list(range(nnodes))
+        node_selector = get_node_mask(self.model, where if where is not None else range(len(self.model.scenario)))
 
-        # Build a per-node probability vector: coverage for targeted nodes, 0 elsewhere.
-        node_mask = np.zeros(nnodes, dtype=bool)
-        for node in target_nodes:
-            node_mask[node] = True
-        p = np.where(node_mask, coverage, 0.0)
+        # separate [tick+1] indexing handles mixed basic and advanced indexing:
+        # https://numpy.org/doc/stable/user/basics.indexing.html#combining-advanced-and-basic-indexing
+        # ... accounts for any extra dimensions, thinking primarily about age groups
+        draws = np.random.binomial(self.model.states[tick+1][state_selector,...,node_selector], coverage).astype(np.int32)
+        self.model.states[tick+1][state_selector,...,node_selector] -= draws
+        draws = draws.sum(axis=0) # sum across source states
+        self.model.states.V[tick+1,...,node_selector] += draws
+        self.model.nodes.newly_vaccinated[tick,node_selector] += draws
 
-        states_next = self.model.states[tick + 1]  # (nstates, nnodes)
-        V = self.model.states.V
-        total_vaccinated = np.zeros(nnodes, dtype=np.int32)
-
-        for state_name in target_states:
-            idx = self.model.states.get_state_index(state_name)
-            if idx is None:
-                logger.warning("Vaccination: state '%s' not found in model; skipping", state_name)
-                continue
-            state_row = states_next[idx]  # (nnodes,) view
-            drawn = np.random.binomial(state_row, p).astype(np.int32)
-            states_next[idx] -= drawn
-            V[tick + 1] += drawn
-            total_vaccinated += drawn
-
-        self.model.nodes.newly_vaccinated[tick] += total_vaccinated
         logger.info(
             "Vaccination tick %d: vaccinated %d total across %d nodes",
             tick,
-            int(total_vaccinated.sum()),
-            len(target_nodes),
+            int(draws.sum()),
+            len(where) if where is not None else len(self.model.scenario),
         )

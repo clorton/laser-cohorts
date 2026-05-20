@@ -379,3 +379,7 @@ def test_vaccinated_individuals_persist_in_V_after_scheduled_tick() -> None:
     assert int(model.states.V[2, 0]) == 1000
     assert int(model.states.V[3, 0]) == 1000
     assert int(model.states.V[4, 0]) == 1000
+
+
+if __name__ == "__main__":
+    pytest.main()

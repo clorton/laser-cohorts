@@ -209,7 +209,7 @@ def _normalize_when(raw, start_date: date | None = None) -> list[int] | None:
 
 
 @dataclass
-class ScheduledEntry:
+class ScheduleEntry:
     """A single fully-parsed schedule entry — one intervention dispatch.
 
     Each instance corresponds to one ``(tick, intervention)`` pair after the
@@ -386,8 +386,8 @@ class Campaign:
         self._validate(raw)
         self._parsed = self._parse_entries(raw)
 
-        self._every_tick: list[ScheduledEntry] = []
-        self._at_tick: dict[int, list[ScheduledEntry]] = {}
+        self._every_tick: list[ScheduleEntry] = []
+        self._at_tick: dict[int, list[ScheduleEntry]] = {}
 
     # ------------------------------------------------------------------
     # Loading
@@ -547,20 +547,20 @@ class Campaign:
                                 f"start date {self._start_date:%Y-%m-%d}."
                             )
 
-    def _parse_entries(self, raw: list[dict]) -> list[ScheduledEntry]:
+    def _parse_entries(self, raw: list[dict]) -> list[ScheduleEntry]:
         """Convert pre-validated schedule entries into the tick-indexed form.
 
         Assumes `_validate` has already approved every entry.  Each entry is
-        expanded into one or more `ScheduledEntry` instances — one per
+        expanded into one or more `ScheduleEntry` instances — one per
         resolved tick — and every-tick entries get ``tick=None``.
 
         Args:
             raw (list[dict]): Validated schedule entries from `_load`.
 
         Returns:
-            list[ScheduledEntry]: Flattened list of per-tick dispatch entries.
+            list[ScheduleEntry]: Flattened list of per-tick dispatch entries.
         """
-        parsed: list[ScheduledEntry] = []
+        parsed: list[ScheduleEntry] = []
         for entry in raw:
             ticks = _normalize_when(entry.get("when", "*"), self._start_date)
             what = entry["what"]
@@ -570,10 +570,10 @@ class Campaign:
             notes = str(entry.get("notes", ""))
 
             if ticks is None:
-                parsed.append(ScheduledEntry(what=what, who=who, where=where, params=params, notes=notes, tick=None))
+                parsed.append(ScheduleEntry(what=what, who=who, where=where, params=params, notes=notes, tick=None))
             else:
                 for t in ticks:
-                    parsed.append(ScheduledEntry(what=what, who=who, where=where, params=params, notes=notes, tick=t))
+                    parsed.append(ScheduleEntry(what=what, who=who, where=where, params=params, notes=notes, tick=t))
 
         return parsed
 
@@ -594,8 +594,8 @@ class Campaign:
             sum(len(v) for v in self._at_tick.values()),
         )
 
-    def add_entry(self, entry: ScheduledEntry) -> None:
-        """Schedule a `ScheduledEntry` for dispatch later in the running simulation.
+    def add_entry(self, entry: ScheduleEntry) -> None:
+        """Schedule a `ScheduleEntry` for dispatch later in the running simulation.
 
         Designed to be called at simulation time — typically from inside another
         intervention's ``apply()`` to add a follow-up dispatch.  The entry is
@@ -604,18 +604,18 @@ class Campaign:
         ``Campaign.step`` will pick it up.
 
         Args:
-            entry (ScheduledEntry): Fully-formed entry. ``entry.tick`` is the
+            entry (ScheduleEntry): Fully-formed entry. ``entry.tick`` is the
                 absolute simulation tick at which to dispatch (or ``None`` for
                 every-tick firing); ``entry.what`` must be a registered
                 intervention class name.
 
         Raises:
-            TypeError: If ``entry`` is not a `ScheduledEntry`.
+            TypeError: If ``entry`` is not a `ScheduleEntry`.
             ValueError: If ``entry.what`` is not a registered intervention.
         """
-        if not isinstance(entry, ScheduledEntry):
+        if not isinstance(entry, ScheduleEntry):
             raise TypeError(
-                f"add_entry expects a ScheduledEntry, got {type(entry).__name__}"
+                f"add_entry expects a ScheduleEntry, got {type(entry).__name__}"
             )
         if entry.what not in self._registry:
             raise ValueError(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+from collections.abc import Iterable
 from typing import Any, Type
 
 
@@ -255,47 +256,86 @@ class StateArray(np.ndarray):
         """
         return self._state_names.index(name) if (self._state_names is not None) and (name in self._state_names) else None
 
-    def get_state_mask(self, states: str | list[str]) -> np.ndarray:
-        """Return a boolean mask selecting the specified state compartments.
+    def get_state_mask(self, states: str | Iterable[str]) -> int | slice | np.ndarray:
+        """Convert a state selector into a numpy-indexable value along the state axis.
 
-        The returned array has length equal to the number of registered states
-        and is ``True`` at each position corresponding to a named state in
-        ``states``.  Useful for vectorised operations that apply to a subset
-        of compartments (e.g. mortality restricted to ``["S", "I"]``).
+        Returns one of three forms, chosen for performance:
+
+        - ``int`` — when ``states`` is a single state name (str), the
+          integer axis index of that state.  Use this to drop the state
+          axis when indexing.
+        - ``slice(None)`` — when ``states`` selects every registered state
+          (duplicates in the input are allowed).
+        - boolean ``np.ndarray`` of length ``n_states`` — otherwise; ``True``
+          at each index corresponding to a state in ``states``.
+
+        Mirrors `laser.cohorts.utils.get_node_mask` so that a single scalar
+        argument drops the corresponding axis and an exhaustive selector
+        becomes ``slice(None)``.
 
         Args:
-            states (str | list[str]): A single state name or a list of state
-                names to include in the mask.
+            states: A single state name, or any iterable of state names.
+                ``str`` is handled specially as a scalar (not iterated
+                character-by-character).
 
         Returns:
-            np.ndarray: Boolean array of length ``n_states`` (the size of the
-                state axis) with ``True`` at each index corresponding to a
-                state in ``states`` and ``False`` elsewhere.
+            int | slice | np.ndarray: A value usable as a numpy index along
+                the state axis.
 
         Raises:
-            ValueError: If ``states`` is neither a string nor a list.
+            TypeError: If ``states`` is not a string or iterable of strings.
             ValueError: If any name in ``states`` is not a registered state.
 
         Example:
             >>> sa = StateArray(["S", "I", "R"], 0, shape=(3, 10))
-            >>> sa.get_state_mask("S")
-            array([ True, False, False])
-            >>> sa.get_state_mask(["S", "R"])
+            >>> sa.get_state_mask("I")            # scalar string -> int
+            1
+            >>> sa.get_state_mask(["S", "I", "R"])  # exhaustive -> slice
+            slice(None, None, None)
+            >>> sa.get_state_mask(["S", "R"])      # subset -> mask
             array([ True, False,  True])
         """
+        all_states = self._state_names or ()
+
+        # Scalar string -> int index (drops the state axis when used as an index).
         if isinstance(states, str):
-            states = [states]
+            idx = self.get_state_index(states)
+            if idx is None:
+                raise ValueError(
+                    f"'{states}' is not a valid state for this StateArray, "
+                    f"must be one of {all_states}"
+                )
+            return idx
 
-        if not isinstance(states, list):
-            raise ValueError(f"'states' must be a string or list of strings, got {type(states)}")
+        # Anything non-string must be iterable.
+        if not isinstance(states, Iterable):
+            raise TypeError(
+                f"'states' must be a string or iterable of strings, "
+                f"got {type(states).__name__}: {states!r}"
+            )
 
+        # Materialise once so generators / one-shot iterables work safely.
+        state_list = list(states)
+
+        # Per-element validation up-front so error messages are precise.
+        for s in state_list:
+            if not isinstance(s, str):
+                raise TypeError(
+                    f"'states' iterable must contain strings, "
+                    f"got {type(s).__name__}: {s!r}"
+                )
+            if s not in all_states:
+                raise ValueError(
+                    f"'{s}' is not a valid state for this StateArray, "
+                    f"must be one of {all_states}"
+                )
+
+        # Exhaustive selection -> slice(None).  Duplicates in `states` are OK.
+        if set(state_list) == set(all_states):
+            return slice(None)
+
+        # Subset -> boolean mask.
         mask = np.zeros(self.shape[self.state_axis], dtype=bool)
-
-        for state in states:
-            idx = self.get_state_index(state)
-            if idx is not None:
-                mask[idx] = True
-            else:
-                raise ValueError(f"'{state}' is not a valid state for this StateArray, must be one of {self._state_names}")
-
+        for s in state_list:
+            mask[all_states.index(s)] = True
         return mask

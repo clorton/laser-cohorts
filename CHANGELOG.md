@@ -3,17 +3,17 @@
 ## Unreleased
 
 ### Added (Campaign.add_entry — runtime intervention scheduling)
-- `src/laser/cohorts/campaign.py`: renamed module-private `_ScheduledEntry` to public `ScheduledEntry`; the dataclass is now part of the documented surface
-- `Campaign.add_entry(entry: ScheduledEntry) -> None`: new public method that validates the entry's `what` is registered and routes it to either `Campaign._every_tick` (if `entry.tick is None`) or the appropriate `Campaign._at_tick[entry.tick]` bucket; raises `TypeError` on wrong type, `ValueError` on unregistered intervention
-- `src/laser/cohorts/__init__.py`: exports `ScheduledEntry` alongside `Campaign` and `Intervention`
-- `docs/notebooks/nb_19_reactive_campaign.ipynb`: `Surveillance.execute` now schedules reactive vaccination via `campaign.add_entry(ScheduledEntry(...))` instead of reaching into `Campaign._at_tick` directly; markdown and discussion updated to reflect the new public API
-- `tests/test_campaign.py`: added 5 tests covering tick-specific routing, every-tick routing, dispatch from inside another intervention's `execute()`, `TypeError` for non-`ScheduledEntry` input, and `ValueError` for unregistered `what`
+- `src/laser/cohorts/campaign.py`: renamed module-private `_ScheduleEntry` to public `ScheduleEntry`; the dataclass is now part of the documented surface
+- `Campaign.add_entry(entry: ScheduleEntry) -> None`: new public method that validates the entry's `what` is registered and routes it to either `Campaign._every_tick` (if `entry.tick is None`) or the appropriate `Campaign._at_tick[entry.tick]` bucket; raises `TypeError` on wrong type, `ValueError` on unregistered intervention
+- `src/laser/cohorts/__init__.py`: exports `ScheduleEntry` alongside `Campaign` and `Intervention`
+- `docs/notebooks/nb_19_reactive_campaign.ipynb`: `Surveillance.execute` now schedules reactive vaccination via `campaign.add_entry(ScheduleEntry(...))` instead of reaching into `Campaign._at_tick` directly; markdown and discussion updated to reflect the new public API
+- `tests/test_campaign.py`: added 5 tests covering tick-specific routing, every-tick routing, dispatch from inside another intervention's `execute()`, `TypeError` for non-`ScheduleEntry` input, and `ValueError` for unregistered `what`
 
 ### Changed (Campaign — parsed entries are dataclass instances)
-- `src/laser/cohorts/campaign.py`: introduced `_ScheduledEntry`, a module-level `@dataclass` with fields `what`, `who`, `where`, `params`, `notes`, and `tick`
-- `Campaign._parse_entries` now returns `list[_ScheduledEntry]` instead of `list[dict]` — same content, attribute access instead of string-keyed lookup
+- `src/laser/cohorts/campaign.py`: introduced `_ScheduleEntry`, a module-level `@dataclass` with fields `what`, `who`, `where`, `params`, `notes`, and `tick`
+- `Campaign._parse_entries` now returns `list[_ScheduleEntry]` instead of `list[dict]` — same content, attribute access instead of string-keyed lookup
 - `Campaign.setup`, `Campaign.step`, `Campaign.properties`, and `Campaign.states` updated to read fields via `entry.what` / `entry.who` / `entry.where` / `entry.params` / `entry.notes` / `entry.tick`
-- `Campaign._every_tick` and `Campaign._at_tick` type annotations updated to `list[_ScheduledEntry]` / `dict[int, list[_ScheduledEntry]]`
+- `Campaign._every_tick` and `Campaign._at_tick` type annotations updated to `list[_ScheduleEntry]` / `dict[int, list[_ScheduleEntry]]`
 - `properties` and `states` also dropped the dead `name not in self._registry` guard — validation now ensures all `what` names are registered
 
 ### Changed (Campaign — registered-intervention check moved to validation)
