@@ -1,17 +1,19 @@
-mkdocs-material # doc theme that includes extensive functionality
-mkdocs-include-markdown-plugin # include files outside /docs
+mkdocs>=1.6.1
 mkdocs-autorefs # create automatic linkable references to sections, etc.
-mkdocs-gen-files # generate external module reference docs
-mkdocs-literate-nav # use a SUMMARY.md file for API reference TOC
-mkdocs-section-index # ability to create parent topics in TOC
-python-markdown-math # integrate LaTeX math
-pymdown-extensions # various extensions for markdown
-mkdocs-jupyter # jupyter notebooks
-mkdocstrings # generate API reference from docstrings
-mkdocstrings-python # python handler for mkdocstrings
-mkdocs-table-reader-plugin
-mkdocs-mermaid2-plugin
 mkdocs-exclude
+mkdocs-gen-files # generate external module reference docs
+mkdocs-git-revision-date-localized-plugin>=1.5.1
+mkdocs-include-markdown-plugin>=7.2.1 # include files outside /docs
+mkdocs-jupyter # jupyter notebooks
+mkdocs-literate-nav # use a SUMMARY.md file for API reference TOC
+mkdocs-material>=9.7.5 # doc theme that includes extensive functionality
+mkdocs-mermaid2-plugin
+mkdocs-section-index # ability to create parent topics in TOC
+mkdocs-table-reader-plugin
+mkdocstrings[python]>=1.0.3 # generate API reference from docstrings
+mkdocstrings-python # python handler for mkdocstrings
+pymdown-extensions # various extensions for markdown
+python-markdown-math # integrate LaTeX math
 
 # include all packages needed for running Jupyter notebooks
 pandas

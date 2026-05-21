@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Changed (StateArray.get_state_mask — symmetric selector return type)
+- `src/laser/cohorts/statearray.py` `get_state_mask`: rewritten to mirror `get_node_mask`.  Return type widened from `np.ndarray | slice` to `int | slice | np.ndarray`:
+  - scalar `str` input → `int` (the axis index; drops the state axis when used to index)
+  - iterable that names every registered state → `slice(None)`
+  - any other iterable → boolean mask of length `n_states`
+- Iterable inputs are materialised once via `list(states)`, so generators / `iter(...)` no longer silently produce empty masks (regression test added).
+- Tuples are now accepted; the previous "must be string or list" `ValueError` is replaced by a `TypeError` only for non-string, non-iterable inputs and for iterables containing non-string elements.
+- Caller side-effects: `Vaccination` (`interventions/vaccination.py`) and the `VaxIntervention` test stub now feed the result directly to numpy fancy indexing as a `state_selector`, paired with `get_node_mask`'s `node_selector`, eliminating the per-state Python loop.
+- `tests/test_statearray.py` `TestGetStateMask`: rewrote 4 existing tests to match the new return semantics and added 3 new ones (`test_non_iterable_input_raises_type_error`, `test_iterable_with_non_string_element_raises_type_error`, `test_generator_is_consumed_exactly_once`).
+- `tests/test_statearray.py` `TestMultiCharacterStateNames`: new test class — 12 tests covering construction, attribute access, write-through, `get_state_index`, `get_state_mask` (scalar / subset / exhaustive), unknown names, substring rejection, mixed-length name lists, and a 3-D `(nticks, nstates, npatches)` layout — all exercised with multi-character names like `"vax"` and `"mat"`.
+
+### Added (laser.cohorts.utils.get_node_mask)
+- `src/laser/cohorts/utils.py`: new `get_node_mask(model, nodes)` helper that mirrors `StateArray.get_state_mask`.  Accepts a single integer node id, any iterable of node ids, or the implicit "all nodes"; returns `int`, `np.ndarray[bool]`, or `slice(None)` respectively.
+- Allows interventions to convert their `where` field into a numpy-indexable selector in one line: `node_selector = get_node_mask(model, where if where is not None else range(len(model.scenario)))`.
+- `interventions/vaccination.py` `Vaccination.apply`: rewritten to use `state_selector` + `node_selector` for a single vectorised binomial draw and write-back; the `...` between the two selectors keeps the pattern valid for state arrays with extra axes (e.g. age groups).
+
+### Changed (Intervention.execute → Intervention.apply)
+- `src/laser/cohorts/campaign.py` `Intervention.execute` renamed to `Intervention.apply`; `Campaign.step` dispatches `intervention.apply(...)`.  All built-in interventions, the notebooks (`nb_17`, `nb_18`, `nb_19`), and the tests now define `apply()`.
+- `docs/campaign.md`: schedule-entry table, "Writing a custom intervention" section, and all examples updated to use `apply()`.
+
 ### Added (Campaign.add_entry — runtime intervention scheduling)
 - `src/laser/cohorts/campaign.py`: renamed module-private `_ScheduleEntry` to public `ScheduleEntry`; the dataclass is now part of the documented surface
 - `Campaign.add_entry(entry: ScheduleEntry) -> None`: new public method that validates the entry's `what` is registered and routes it to either `Campaign._every_tick` (if `entry.tick is None`) or the appropriate `Campaign._at_tick[entry.tick]` bucket; raises `TypeError` on wrong type, `ValueError` on unregistered intervention

@@ -241,4 +241,61 @@ Campaign.register(SeedInfection)     # key = "SeedInfection"
 
 Registration is class-level and persistent for the lifetime of the Python process. If you run multiple models in the same session you only need to register once.
 
-An unregistered name in the schedule raises `KeyError` when the scheduled tick is reached during `model.run()`.
+An unregistered name in the schedule raises `ValueError` at construction time — `Campaign._validate` checks the registry the moment the schedule is loaded, so the error surfaces immediately rather than when the offending tick is dispatched.
+
+---
+
+## Adding interventions at runtime — `Campaign.add_entry`
+
+The schedule passed to `Campaign(...)` defines every dispatch known at construction time, but `Campaign` can be extended *during* a run.  Use `Campaign.add_entry(entry)` to schedule a follow-up intervention from inside another intervention's `apply()` — typical pattern for reactive surveillance, cascading interventions, or any scenario where the right tick to fire on is only known after some condition is observed.
+
+### The `ScheduleEntry` dataclass
+
+`ScheduleEntry` is the normalised, fully-parsed form of a schedule row.  After `Campaign` loads and validates a schedule, every raw entry is expanded into one or more `ScheduleEntry` instances (one per resolved tick).  You build one explicitly when calling `add_entry`:
+
+```python
+from laser.cohorts import Campaign, ScheduleEntry
+
+ScheduleEntry(
+    what="Vaccination",        # registered intervention name
+    who=["S"],                  # or None for all states
+    where=[0],                  # or None for all nodes
+    params={"coverage": 0.7},
+    notes="reactive round triggered at tick 154",
+    tick=155,                   # absolute tick to fire on, or None for every tick
+)
+```
+
+### Calling `add_entry` from inside `apply()`
+
+```python
+class Surveillance(Intervention):
+    def apply(self, tick, who, where, params, notes):
+        # 1. Detect — count recent cases, decide which nodes to flag
+        ...
+        if not alarms:
+            return
+
+        # 2. Locate the Campaign we belong to
+        campaign = next(c for c in self.model.components if isinstance(c, Campaign))
+
+        # 3. Schedule a follow-up Vaccination round for tick + 1
+        campaign.add_entry(
+            ScheduleEntry(
+                what="Vaccination",
+                who=["S"],
+                where=sorted(alarms),
+                params={"coverage": 0.7},
+                notes=f"reactive vaccination for {alarms}",
+                tick=tick + 1,
+            )
+        )
+```
+
+### Semantics
+
+- **Validation.** `add_entry` validates the entry's `what` against the same registry as construction-time validation: an unregistered name raises `ValueError`, and a non-`ScheduleEntry` argument raises `TypeError`.
+- **Routing.** Entries with `tick=None` go into the every-tick bucket and fire on every subsequent tick.  Entries with a concrete `tick` go into `Campaign._at_tick[tick]` and fire on that tick.
+- **Visibility.** `Campaign.step` re-reads its dispatch list at the start of every tick, so an entry added during dispatch at tick `T` is visible from tick `T+1` onward.  An entry added for the current tick or any tick already in the past silently does nothing.
+
+For a fully worked example — monthly surveillance that reactively vaccinates alarmed nodes (and optionally their network neighbours) — see `nb_19_reactive_campaign.ipynb`.
