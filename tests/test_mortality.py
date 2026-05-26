@@ -184,3 +184,141 @@ def test_ndarray_r_mortality_accepted_unchanged() -> None:
     ]
     model.run()
     assert np.all(model.states.S[-1] == 400)
+
+
+# ---------------------------------------------------------------------------
+# __init__: validation — type and shape of r_mortality
+# ---------------------------------------------------------------------------
+
+
+def test_rejects_non_scalar_non_valuesmap_non_ndarray_r_mortality() -> None:
+    """Given a `r_mortality` argument that is neither scalar nor `ValuesMap`
+    nor `np.ndarray` (e.g. a nested Python list), when `NonDiseaseMortality`
+    is constructed, then a `ValueError` is raised that names the offending
+    type.
+
+    The constructor's type-guard should reject anything that can't be
+    indexed as ``r_mortality[tick]`` so the failure surfaces at construction
+    rather than confusingly inside `step()`.
+    """
+    import pytest
+
+    scenario = _scenario(n_nodes=2)
+    nticks = 4
+    model = Model(scenario, PropertySet({"nticks": nticks}))
+
+    bad_input = [[0.01, 0.01]] * nticks   # nested list, not an ndarray
+    with pytest.raises(ValueError, match="must be a scalar"):
+        NonDiseaseMortality(model, r_mortality=bad_input)
+
+
+def test_rejects_dict_r_mortality() -> None:
+    """Given a dict passed as `r_mortality`, when `NonDiseaseMortality` is
+    constructed, then a `ValueError` is raised.
+
+    Catches the case where a caller passes config-style mappings (e.g.
+    keyed by node name) instead of an array.
+    """
+    import pytest
+
+    scenario = _scenario(n_nodes=2)
+    nticks = 4
+    model = Model(scenario, PropertySet({"nticks": nticks}))
+
+    with pytest.raises(ValueError, match="must be a scalar"):
+        NonDiseaseMortality(model, r_mortality={"node0": 0.01, "node1": 0.02})
+
+
+def test_rejects_r_mortality_ndarray_with_wrong_nticks() -> None:
+    """Given an ndarray with too many ticks (shape (nticks+1, nnodes)), when
+    `NonDiseaseMortality` is constructed, then a `ValueError` is raised that
+    mentions ``shape``.
+
+    Catches the off-by-one mistake of sizing the rate array to
+    ``nticks + 1`` (the state-array tick dimension) instead of ``nticks``
+    (the rate-array tick dimension).
+    """
+    import pytest
+
+    scenario = _scenario(n_nodes=2)
+    nticks = 4
+    model = Model(scenario, PropertySet({"nticks": nticks}))
+
+    wrong = np.full((nticks + 1, 2), 0.01)
+    with pytest.raises(ValueError, match="shape"):
+        NonDiseaseMortality(model, r_mortality=wrong)
+
+
+def test_rejects_r_mortality_ndarray_with_wrong_nnodes() -> None:
+    """Given an ndarray with the wrong node count (shape (nticks, nnodes+1)),
+    when `NonDiseaseMortality` is constructed, then a `ValueError` is raised.
+
+    Catches mis-aligned per-node mortality vectors — e.g. extending the
+    network without re-sizing the rate array.
+    """
+    import pytest
+
+    scenario = _scenario(n_nodes=2)
+    nticks = 4
+    model = Model(scenario, PropertySet({"nticks": nticks}))
+
+    wrong = np.full((nticks, 3), 0.01)
+    with pytest.raises(ValueError, match="shape"):
+        NonDiseaseMortality(model, r_mortality=wrong)
+
+
+def test_rejects_r_mortality_1d_ndarray() -> None:
+    """Given a 1-D ndarray (length nnodes) passed as `r_mortality`, when
+    `NonDiseaseMortality` is constructed, then a `ValueError` is raised.
+
+    A length-nnodes vector is a tempting but unsupported shorthand for
+    "per-node, constant in time" — should fail loudly with a shape error.
+    """
+    import pytest
+
+    scenario = _scenario(n_nodes=2)
+    nticks = 4
+    model = Model(scenario, PropertySet({"nticks": nticks}))
+
+    wrong = np.array([0.01, 0.02])   # 1-D, length nnodes
+    with pytest.raises(ValueError, match="shape"):
+        NonDiseaseMortality(model, r_mortality=wrong)
+
+
+def test_rejects_r_mortality_valuesmap_with_wrong_shape() -> None:
+    """Given a `ValuesMap` whose shape doesn't match ``(nticks, nnodes)``,
+    when `NonDiseaseMortality` is constructed, then a `ValueError` is
+    raised that mentions ``shape``.
+
+    Lets users assert that a pre-built ValuesMap really matches the model
+    dimensions before it's used by `step()`.
+    """
+    import pytest
+
+    scenario = _scenario(n_nodes=2)
+    nticks = 4
+    model = Model(scenario, PropertySet({"nticks": nticks}))
+
+    vmap = ValuesMap.from_array(np.full((nticks, 5), 0.01))   # 5 nodes ≠ 2
+    with pytest.raises(ValueError, match="shape"):
+        NonDiseaseMortality(model, r_mortality=vmap)
+
+
+def test_accepts_r_mortality_valuesmap_with_matching_shape() -> None:
+    """Given a `ValuesMap.from_array(...)` of the correct shape, when
+    `NonDiseaseMortality` is constructed, then the ValuesMap is stored
+    verbatim and `r_mortality[tick]` returns the expected per-node vector.
+
+    Confirms the validation gate does not also wrap a well-formed ValuesMap
+    into another ValuesMap or otherwise mutate it.
+    """
+    scenario = _scenario(n_nodes=2)
+    nticks = 4
+    model = Model(scenario, PropertySet({"nticks": nticks}))
+
+    raw = np.full((nticks, 2), 0.005)
+    vmap = ValuesMap.from_array(raw)
+    comp = NonDiseaseMortality(model, r_mortality=vmap)
+
+    assert comp.r_mortality is vmap
+    assert np.allclose(np.asarray(comp.r_mortality[0]), 0.005)

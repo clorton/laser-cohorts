@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Added (Campaign — YAML schedule loading)
+- `src/laser/cohorts/campaign.py` `Campaign._load`: now accepts ``.yaml`` and ``.yml`` paths in addition to ``.json``, ``.csv``, in-memory ``dict``, and in-memory ``list`` sources. YAML files are parsed with ``yaml.safe_load``; a single top-level mapping is promoted to a one-entry list (mirroring the JSON loader). Empty YAML files parse to an empty schedule.
+- `src/laser/cohorts/campaign.py`: module docstring and ``Campaign.__init__`` ``Raises``/``Args`` docstrings updated to list ``.yaml`` / ``.yml`` alongside the existing formats.  The "Unsupported source" error message now names YAML.
+- `pyproject.toml`: added ``PyYAML`` to the runtime dependencies.
+- `tests/data/campaign_sample.{json,yaml,csv}`: new directory of three equivalent sample campaign files — one baseline entry at tick 0, a boosters entry firing on ticks 10 / 20 / 30 in nodes 0–1 for state ``S``, and an every-tick surveillance entry. The YAML file carries header comments documenting the schedule grammar.
+- `tests/test_campaign.py`: added 5 tests — `test_yaml_file_source_loads_correctly`, `test_yml_file_extension_also_loads`, `test_yaml_single_dict_loads_as_single_entry`, `test_yaml_supports_date_when_with_start_date`, and a parametrised `test_sample_data_files_load_and_fire_consistently[json|yaml|csv]` that loads each of the three sample files and asserts identical firings.
+- `docs/campaign.md`: "Loading sources" section now lists five formats (was four); added a YAML tab alongside dict / list / JSON / CSV with a worked example and pointer to `tests/data/campaign_sample.yaml`.
+- `docs/notebooks/nb_18_campaign_specs.ipynb`: introduction (cell-01) and summary (cell-26) updated to list YAML as a fifth supported source; `build_and_run` docstring in cell-07 updated to mention `.yaml` / `.yml`.
+
+### Added (BirthsByCBR — vital-dynamics component driven by per-tick/per-node CBR)
+- `src/laser/cohorts/vitaldynamics.py`: new `BirthsByCBR` component. On each tick, sums states to compute the per-node total population `N`, draws Poisson births with rate `N * r_birth[tick]`, adds them to `S[tick+1]`, and records the per-node count in `nodes.new_births`. Unlike `ConstantPopBirths`, this is an independent demographic process — it can grow a population on its own or be paired with `NonDiseaseMortality` for differential birth/death rates.
+- `BirthsByCBR.__init__` accepts `r_birth` as `int | float | ValuesMap | np.ndarray`. Scalars are broadcast via `ValuesMap.from_scalar`. `ValuesMap` and `np.ndarray` inputs are checked for shape `(nticks, nnodes)`; any other type, or a wrong-shaped array, raises `ValueError` at construction.
+- `src/laser/cohorts/vitaldynamics.py` `NonDiseaseMortality.__init__`: tightened the `r_mortality` argument with the same `ValuesMap | np.ndarray` type check and `(nticks, nnodes)` shape check used by `BirthsByCBR`.
+- `tests/test_vitaldynamics.py`: new test module — 21 tests covering scalar / `ValuesMap` / ndarray inputs, per-node CBR variation, integration with `NonDiseaseMortality`, the `new_births` node property, and 7 validation tests that exercise every rejection path on `BirthsByCBR.__init__`.
+- `tests/test_mortality.py`: added 7 parallel validation tests for `NonDiseaseMortality.__init__` (`test_rejects_non_scalar_non_valuesmap_non_ndarray_r_mortality`, `test_rejects_dict_r_mortality`, `test_rejects_r_mortality_ndarray_with_wrong_nticks`, `test_rejects_r_mortality_ndarray_with_wrong_nnodes`, `test_rejects_r_mortality_1d_ndarray`, `test_rejects_r_mortality_valuesmap_with_wrong_shape`, `test_accepts_r_mortality_valuesmap_with_matching_shape`).
+- `docs/notebooks/nb_08_births_varying_cbr.ipynb`: rewritten to use `BirthsByCBR` instead of `ConstantPopBirths`. The third scenario (declining CBR with constant CDR → population grows then shrinks) no longer needs the bespoke `ScaledBirths(ConstantPopBirths)` subclass; it just passes a time-varying `r_birth` array.
+- `docs/notebooks/nb_15_england_wales_model.ipynb`: vital dynamics now use historical per-year, per-city CBR data directly — `BirthsByCBR(r_birth=r_birth_2d)` built from `cbr_annual` (954 cities × 21 years), paired with `NonDiseaseMortality(r_mortality=r_mortality_2d)` held at the 1944 CBR as a proxy for CDR.
+
 ### Changed (StateArray.get_state_mask — symmetric selector return type)
 - `src/laser/cohorts/statearray.py` `get_state_mask`: rewritten to mirror `get_node_mask`.  Return type widened from `np.ndarray | slice` to `int | slice | np.ndarray`:
   - scalar `str` input → `int` (the axis index; drops the state axis when used to index)

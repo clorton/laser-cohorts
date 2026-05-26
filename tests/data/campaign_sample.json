@@ -1,0 +1,26 @@
+[
+    {
+        "who": "*",
+        "what": "RecordingIntervention",
+        "when": 0,
+        "where": "*",
+        "parameters": {"coverage": 0.8, "round": 1},
+        "notes": "baseline campaign — all states, all nodes, day 0"
+    },
+    {
+        "who": ["S"],
+        "what": "RecordingIntervention",
+        "when": [10, 20, 30],
+        "where": [0, 1],
+        "parameters": {"coverage": 0.6, "round": 2},
+        "notes": "boosters in nodes 0 and 1 on days 10, 20, 30"
+    },
+    {
+        "who": "*",
+        "what": "RecordingIntervention",
+        "when": "*",
+        "where": "*",
+        "parameters": {},
+        "notes": "every-tick surveillance"
+    }
+]
