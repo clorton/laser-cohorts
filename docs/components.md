@@ -230,6 +230,65 @@ model.components = [
 
 ---
 
+## Routine immunization
+
+### `RoutineImmunization`
+
+`RoutineImmunization` is a component (added to `model.components`) that represents an ongoing baseline vaccination programme — for example, infant immunization that runs continuously through the simulation rather than firing as a one-off campaign.  It declares the `V` compartment, periodically moves susceptibles from `S` into `V`, and accumulates per-node counts on `nodes.ri_vaccinated`.
+
+> **`RoutineImmunization` (component) vs `Vaccination` (intervention).**
+> The campaign-driven `Vaccination` *intervention* (under `laser.cohorts.interventions`) fires on the specific ticks listed in a `Campaign` schedule and uses a direct binomial draw at the supplied `coverage` probability.  `RoutineImmunization` is a *component* that fires continuously on a fixed period and converts an annual coverage rate into the corresponding per-firing Poisson mean.  Use the intervention for discrete campaigns; use the component for routine baseline coverage.
+
+```python
+from laser.cohorts import RoutineImmunization
+
+ri = RoutineImmunization(
+    model,
+    coverage=0.8,             # annual coverage rate r in [0, 1]
+    eligible_fraction=1/70,   # share of S that's eligible (e.g. infants)
+    period=30,                # fire every 30 ticks
+)
+
+model.components = [
+    SIR.Susceptible(model),
+    SIR.Infectious(model, r_recovery=r_recoveries),
+    SIR.Recovered(model),
+    SIR.Transmission(model, beta=betas),
+    ri,
+]
+```
+
+**Mathematical model.**  Given an annual coverage rate `r` (fraction of the eligible cohort the programme aims to vaccinate per year) and an eligible-fraction `ef` (the share of `S` that is age-eligible or otherwise reachable), the daily fraction of susceptibles vaccinated is
+
+    f_daily = r * ef / 365
+
+If the component fires every `period` ticks instead of every tick, each firing must cover the cohort accumulated over the preceding `period` days, so the per-firing fraction is
+
+    f_period = period * r * ef / 365
+
+On each firing tick the component draws
+
+    draws  =  min( poisson( f_period * S ),  S )
+
+per node, subtracts `draws` from `S[tick + 1]`, adds it to `V[tick + 1]`, and records the per-node count in `nodes.ri_vaccinated[tick]`.  The cap at `S` is what makes the model safe for large `f_period` (e.g. `r = ef = 1` and `period = 365`, where the Poisson mean equals `S` itself).
+
+**Parameters.**
+
+| Parameter | Type | Default | Meaning |
+|---|---|---|---|
+| `coverage` | `float` in `[0, 1]` | required | Annual coverage rate `r`. |
+| `eligible_fraction` | `float` in `[0, 1]` | `1.0` | Share of `S` that is eligible for vaccination (e.g. ~`1/70` for infant-only programmes). |
+| `period` | positive `int` | `1` | Tick period between firings; with `period=1` the component fires every tick. |
+
+Out-of-range coverage or eligible fraction, or a non-positive / non-integer period, raises `ValueError` at construction time.
+
+**Outputs.**
+
+- `model.states.V` — the running vaccinated count per node, per tick.
+- `model.nodes.ri_vaccinated` — the per-firing-tick count of new vaccinations per node; non-zero only on multiples of `period`.
+
+---
+
 ## Migration
 
 `Migration` moves individuals between nodes each tick using a 3-D routing tensor.

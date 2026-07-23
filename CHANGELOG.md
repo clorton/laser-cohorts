@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added (RoutineImmunization — periodic baseline vaccination component)
+- `src/laser/cohorts/interventions/routine_immunization.py`: new `RoutineImmunization` component. Periodically moves a Poisson-drawn fraction of susceptibles into a `V` (vaccinated) compartment to represent ongoing baseline vaccination (e.g. infant immunization). The per-firing fraction is `period * coverage * eligible_fraction / 365`; the Poisson draw is capped at the current per-node `S` count. Fires on every tick `t` for which `t % period == 0`.
+- `RoutineImmunization` declares the `V` state and a `ri_vaccinated` per-tick, per-node node property; constructor validates that `coverage` and `eligible_fraction` are in `[0, 1]` and `period` is a positive integer.
+- `src/laser/cohorts/__init__.py`: exports `RoutineImmunization` at the top level.
+- `src/laser/cohorts/interventions/__init__.py`: now re-exports `RoutineImmunization` alongside `Vaccination`; module docstring widened from "Built-in intervention implementations" to "Vaccination and immunization implementations" since the package now contains both campaign-dispatched `Intervention` subclasses and standalone vaccination components.
+- `tests/test_routine_immunization.py`: new test module — 24 tests covering construction validation (out-of-range coverage / eligible_fraction / period, including boolean and float-period rejection), declared `states`/`properties`, model-level `V` allocation, zero-coverage no-op, full-coverage / full-eligibility one-period saturation, conservation of `S + V`, capping at available susceptibles, period-only firing pattern (e.g. tick % 30 == 0), default `period=1` every-tick firing, expected annual-total stochastic bound, and per-node independence of the Poisson draws.
+- `docs/components.md`: new "Routine immunization" section under Vital dynamics with the mathematical model, parameter table, and a note distinguishing the new `RoutineImmunization` *component* from the existing campaign-style `Vaccination` *intervention*.
+- `docs/notebooks/nb_14_routine_immunization.ipynb`: rewritten end-to-end to use the new `RoutineImmunization` component. Compares two otherwise-identical SIR + vital dynamics + seasonal forcing + monthly importation simulations — one without RI (recurring boom-and-bust outbreaks driven by birth-replenished susceptibles) and one with RI (post-wave transmission suppressed indefinitely). Includes per-tick S/I/V trajectories, cumulative-cases overlay, and an annual incidence bar chart.
+
 ### Added (Campaign — YAML schedule loading)
 - `src/laser/cohorts/campaign.py` `Campaign._load`: now accepts ``.yaml`` and ``.yml`` paths in addition to ``.json``, ``.csv``, in-memory ``dict``, and in-memory ``list`` sources. YAML files are parsed with ``yaml.safe_load``; a single top-level mapping is promoted to a one-entry list (mirroring the JSON loader). Empty YAML files parse to an empty schedule.
 - `src/laser/cohorts/campaign.py`: module docstring and ``Campaign.__init__`` ``Raises``/``Args`` docstrings updated to list ``.yaml`` / ``.yml`` alongside the existing formats.  The "Unsupported source" error message now names YAML.
