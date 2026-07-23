@@ -59,13 +59,9 @@ class NonDiseaseMortality:
             self.r_mortality = ValuesMap.from_scalar(r_mortality, model.params.nticks, len(model.scenario))  # type: ignore
         else:
             if not isinstance(r_mortality, ValuesMap | np.ndarray):
-                raise ValueError(
-                    f"r_mortality must be a scalar, a ValuesMap, or a NumPy array, got {type(r_mortality)}"
-                )
+                raise ValueError(f"r_mortality must be a scalar, a ValuesMap, or a NumPy array, got {type(r_mortality)}")
             if (actual := r_mortality.shape) != (expected := (model.params.nticks, len(model.scenario))):  # type: ignore
-                raise ValueError(
-                    f"r_mortality must be scalar or a ValuesMap or NumPy array with shape {expected}, got {actual}"
-                )
+                raise ValueError(f"r_mortality must be scalar or a ValuesMap or NumPy array with shape {expected}, got {actual}")
             self.r_mortality = r_mortality
         self._requested_states = set(states) if states is not None else None
         self._state_mask: np.ndarray | slice | None = None
@@ -273,7 +269,7 @@ class BirthsByCBR:
         else:
             if not isinstance(r_birth, ValuesMap | np.ndarray):
                 raise ValueError(f"r_birth must be a scalar, a ValuesMap, or a NumPy array, got {type(r_birth)}")
-            if (actual := r_birth.shape) != (expected := (model.params.nticks, len(model.scenario))): # type: ignore
+            if (actual := r_birth.shape) != (expected := (model.params.nticks, len(model.scenario))):  # type: ignore
                 raise ValueError(f"r_birth must be scalar or a ValuesMap or NumPy array with shape {expected}, got {actual}")
             self.r_birth = r_birth
 

@@ -164,7 +164,7 @@ def test_birthsbycbr_accepts_2d_ndarray_directly() -> None:
     r[:, 1] = 0.02
     comp = BirthsByCBR(model, r_birth=r)
 
-    assert comp.r_birth is r   # same object, not a copy
+    assert comp.r_birth is r  # same object, not a copy
 
 
 def test_birthsbycbr_accepts_valuesmap_with_matching_shape() -> None:
@@ -206,7 +206,7 @@ def test_birthsbycbr_rejects_non_scalar_non_valuesmap_non_ndarray_input() -> Non
     nticks = 4
     model = Model(scenario, PropertySet({"nticks": nticks}))
 
-    bad_input = [[0.01, 0.01]] * nticks   # plain nested list, not an ndarray
+    bad_input = [[0.01, 0.01]] * nticks  # plain nested list, not an ndarray
     with pytest.raises(ValueError, match="must be a scalar"):
         BirthsByCBR(model, r_birth=bad_input)
 
@@ -242,7 +242,7 @@ def test_birthsbycbr_rejects_ndarray_with_wrong_nticks() -> None:
     nticks = 4
     model = Model(scenario, PropertySet({"nticks": nticks}))
 
-    wrong = np.full((nticks + 1, 2), 0.01)   # too many ticks
+    wrong = np.full((nticks + 1, 2), 0.01)  # too many ticks
     with pytest.raises(ValueError, match="shape"):
         BirthsByCBR(model, r_birth=wrong)
 
@@ -259,7 +259,7 @@ def test_birthsbycbr_rejects_ndarray_with_wrong_nnodes() -> None:
     nticks = 4
     model = Model(scenario, PropertySet({"nticks": nticks}))
 
-    wrong = np.full((nticks, 3), 0.01)   # too many node columns
+    wrong = np.full((nticks, 3), 0.01)  # too many node columns
     with pytest.raises(ValueError, match="shape"):
         BirthsByCBR(model, r_birth=wrong)
 
@@ -276,7 +276,7 @@ def test_birthsbycbr_rejects_1d_ndarray() -> None:
     nticks = 4
     model = Model(scenario, PropertySet({"nticks": nticks}))
 
-    wrong = np.array([0.01, 0.02])   # 1-D, length nnodes
+    wrong = np.array([0.01, 0.02])  # 1-D, length nnodes
     with pytest.raises(ValueError, match="shape"):
         BirthsByCBR(model, r_birth=wrong)
 
@@ -294,7 +294,7 @@ def test_birthsbycbr_rejects_valuesmap_with_wrong_shape() -> None:
     nticks = 4
     model = Model(scenario, PropertySet({"nticks": nticks}))
 
-    raw = np.full((nticks, 5), 0.01)   # 5 node columns for a 2-node model
+    raw = np.full((nticks, 5), 0.01)  # 5 node columns for a 2-node model
     vmap = ValuesMap.from_array(raw)
     with pytest.raises(ValueError, match="shape"):
         BirthsByCBR(model, r_birth=vmap)
@@ -313,8 +313,12 @@ def test_birthsbycbr_zero_rate_produces_no_births() -> None:
     a sign of using the rate's expected value rather than a binomial draw.
     """
     model = _build_sir_model_with_births(
-        n_nodes=1, s_per_node=1000, i_per_node=0, r_per_node=0,
-        nticks=10, r_birth=0.0,
+        n_nodes=1,
+        s_per_node=1000,
+        i_per_node=0,
+        r_per_node=0,
+        nticks=10,
+        r_birth=0.0,
     )
     model.run()
 
@@ -339,8 +343,12 @@ def test_birthsbycbr_non_zero_rate_produces_births() -> None:
     nticks = 50
     n_nodes = 4
     model = _build_sir_model_with_births(
-        n_nodes=n_nodes, s_per_node=10_000, i_per_node=0, r_per_node=0,
-        nticks=nticks, r_birth=0.05,
+        n_nodes=n_nodes,
+        s_per_node=10_000,
+        i_per_node=0,
+        r_per_node=0,
+        nticks=nticks,
+        r_birth=0.05,
     )
     model.run()
 
@@ -361,17 +369,19 @@ def test_birthsbycbr_new_births_records_per_tick_births() -> None:
     """
     nticks = 8
     model = _build_sir_model_with_births(
-        n_nodes=2, s_per_node=5_000, i_per_node=0, r_per_node=0,
-        nticks=nticks, r_birth=0.02,
+        n_nodes=2,
+        s_per_node=5_000,
+        i_per_node=0,
+        r_per_node=0,
+        nticks=nticks,
+        r_birth=0.02,
     )
     model.run()
 
     for tick in range(nticks):
         delta = model.states.S[tick + 1] - model.states.S[tick]
         births = model.nodes.new_births[tick]
-        assert np.array_equal(delta, births), (
-            f"S delta {delta.tolist()} != new_births {births.tolist()} at tick {tick}"
-        )
+        assert np.array_equal(delta, births), f"S delta {delta.tolist()} != new_births {births.tolist()} at tick {tick}"
 
 
 # ---------------------------------------------------------------------------
@@ -390,8 +400,12 @@ def test_birthsbycbr_uses_total_n_not_just_s() -> None:
     """
     nticks = 20
     model = _build_sir_model_with_births(
-        n_nodes=3, s_per_node=0, i_per_node=0, r_per_node=10_000,
-        nticks=nticks, r_birth=0.05,
+        n_nodes=3,
+        s_per_node=0,
+        i_per_node=0,
+        r_per_node=10_000,
+        nticks=nticks,
+        r_birth=0.05,
     )
     model.run()
 
@@ -418,10 +432,14 @@ def test_birthsbycbr_per_node_rate_scales_births() -> None:
     nticks = 10
     n_nodes = 3
     r = np.full((nticks, n_nodes), 0.001)
-    r[:, 1] = 0.010                # node 1 has 10x the CBR
+    r[:, 1] = 0.010  # node 1 has 10x the CBR
     model = _build_sir_model_with_births(
-        n_nodes=n_nodes, s_per_node=50_000, i_per_node=0, r_per_node=0,
-        nticks=nticks, r_birth=r,
+        n_nodes=n_nodes,
+        s_per_node=50_000,
+        i_per_node=0,
+        r_per_node=0,
+        nticks=nticks,
+        r_birth=r,
     )
     model.run()
 
@@ -445,8 +463,12 @@ def test_birthsbycbr_per_tick_rate_zero_then_positive() -> None:
     r = np.zeros((nticks, n_nodes))
     r[nticks // 2 :, :] = 0.02
     model = _build_sir_model_with_births(
-        n_nodes=n_nodes, s_per_node=5_000, i_per_node=0, r_per_node=0,
-        nticks=nticks, r_birth=r,
+        n_nodes=n_nodes,
+        s_per_node=5_000,
+        i_per_node=0,
+        r_per_node=0,
+        nticks=nticks,
+        r_birth=r,
     )
     model.run()
 
@@ -477,15 +499,19 @@ def test_birthsbycbr_total_births_match_expected_law_of_large_numbers() -> None:
     r = 1e-4
     N0 = 100_000
     model = _build_sir_model_with_births(
-        n_nodes=n_nodes, s_per_node=N0, i_per_node=0, r_per_node=0,
-        nticks=nticks, r_birth=r,
+        n_nodes=n_nodes,
+        s_per_node=N0,
+        i_per_node=0,
+        r_per_node=0,
+        nticks=nticks,
+        r_birth=r,
     )
     model.run()
 
     total_births = int(model.nodes.new_births.sum())
     # Lower bound: no compounding; upper bound: full compounding through the run.
     naive_expectation = r * N0 * nticks
-    upper_expectation = N0 * (np.exp(r * nticks) - 1.0)   # closed-form pure-growth
+    upper_expectation = N0 * (np.exp(r * nticks) - 1.0)  # closed-form pure-growth
     assert 0.7 * naive_expectation < total_births < 1.5 * upper_expectation
 
 
@@ -507,9 +533,14 @@ def test_birthsbycbr_growth_when_cbr_exceeds_cdr() -> None:
     r_birth = 0.003
     r_mortality = 0.001
     model = _build_sir_model_with_births(
-        n_nodes=n_nodes, s_per_node=10_000, i_per_node=0, r_per_node=0,
-        nticks=nticks, r_birth=r_birth,
-        include_ndm=True, r_mortality=r_mortality,
+        n_nodes=n_nodes,
+        s_per_node=10_000,
+        i_per_node=0,
+        r_per_node=0,
+        nticks=nticks,
+        r_birth=r_birth,
+        include_ndm=True,
+        r_mortality=r_mortality,
     )
     model.run()
 
@@ -530,9 +561,14 @@ def test_birthsbycbr_decline_when_cbr_below_cdr() -> None:
     r_birth = 0.0005
     r_mortality = 0.003
     model = _build_sir_model_with_births(
-        n_nodes=n_nodes, s_per_node=10_000, i_per_node=0, r_per_node=0,
-        nticks=nticks, r_birth=r_birth,
-        include_ndm=True, r_mortality=r_mortality,
+        n_nodes=n_nodes,
+        s_per_node=10_000,
+        i_per_node=0,
+        r_per_node=0,
+        nticks=nticks,
+        r_birth=r_birth,
+        include_ndm=True,
+        r_mortality=r_mortality,
     )
     model.run()
 
@@ -556,8 +592,12 @@ def test_birthsbycbr_routes_all_births_to_s() -> None:
     nticks = 30
     n_nodes = 2
     model = _build_sir_model_with_births(
-        n_nodes=n_nodes, s_per_node=500, i_per_node=200, r_per_node=100,
-        nticks=nticks, r_birth=0.02,
+        n_nodes=n_nodes,
+        s_per_node=500,
+        i_per_node=200,
+        r_per_node=100,
+        nticks=nticks,
+        r_birth=0.02,
     )
     model.run()
 

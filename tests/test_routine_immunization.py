@@ -170,9 +170,7 @@ def test_full_coverage_one_period_year_vaccinates_almost_everyone() -> None:
     np.random.seed(0)
     nticks = 365
     s_init = 1_000
-    model = _build_model(
-        s_init=s_init, nticks=nticks, coverage=1.0, eligible_fraction=1.0, period=365
-    )
+    model = _build_model(s_init=s_init, nticks=nticks, coverage=1.0, eligible_fraction=1.0, period=365)
     model.run()
 
     assert int(model.states.S[-1, 0]) == 0
@@ -227,9 +225,7 @@ def test_vaccinations_never_exceed_available_susceptibles() -> None:
     np.random.seed(0)
     nticks = 365
     s_init = 200
-    model = _build_model(
-        s_init=s_init, nticks=nticks, coverage=1.0, eligible_fraction=1.0, period=365
-    )
+    model = _build_model(s_init=s_init, nticks=nticks, coverage=1.0, eligible_fraction=1.0, period=365)
     model.run()
 
     # S is monotone non-increasing under this component (no births, no recoveries).
@@ -287,9 +283,7 @@ def test_expected_annual_total_matches_r_ef_S0_within_stochastic_band() -> None:
     nticks = 365
     coverage = 0.5
     ef = 0.6
-    model = _build_model(
-        s_init=s_init, nticks=nticks, coverage=coverage, eligible_fraction=ef, period=30
-    )
+    model = _build_model(s_init=s_init, nticks=nticks, coverage=coverage, eligible_fraction=ef, period=30)
     model.run()
 
     total = int(model.nodes.ri_vaccinated.sum())
@@ -310,9 +304,7 @@ def test_multi_node_per_node_draws_are_independent() -> None:
     """
     np.random.seed(0)
     nticks = 90
-    model = _build_model(
-        s_init=50_000, n_nodes=4, nticks=nticks, coverage=0.5, period=30
-    )
+    model = _build_model(s_init=50_000, n_nodes=4, nticks=nticks, coverage=0.5, period=30)
     model.run()
 
     per_node = model.nodes.ri_vaccinated.sum(axis=0)

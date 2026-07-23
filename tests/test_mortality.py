@@ -207,7 +207,7 @@ def test_rejects_non_scalar_non_valuesmap_non_ndarray_r_mortality() -> None:
     nticks = 4
     model = Model(scenario, PropertySet({"nticks": nticks}))
 
-    bad_input = [[0.01, 0.01]] * nticks   # nested list, not an ndarray
+    bad_input = [[0.01, 0.01]] * nticks  # nested list, not an ndarray
     with pytest.raises(ValueError, match="must be a scalar"):
         NonDiseaseMortality(model, r_mortality=bad_input)
 
@@ -280,7 +280,7 @@ def test_rejects_r_mortality_1d_ndarray() -> None:
     nticks = 4
     model = Model(scenario, PropertySet({"nticks": nticks}))
 
-    wrong = np.array([0.01, 0.02])   # 1-D, length nnodes
+    wrong = np.array([0.01, 0.02])  # 1-D, length nnodes
     with pytest.raises(ValueError, match="shape"):
         NonDiseaseMortality(model, r_mortality=wrong)
 
@@ -299,7 +299,7 @@ def test_rejects_r_mortality_valuesmap_with_wrong_shape() -> None:
     nticks = 4
     model = Model(scenario, PropertySet({"nticks": nticks}))
 
-    vmap = ValuesMap.from_array(np.full((nticks, 5), 0.01))   # 5 nodes ≠ 2
+    vmap = ValuesMap.from_array(np.full((nticks, 5), 0.01))  # 5 nodes ≠ 2
     with pytest.raises(ValueError, match="shape"):
         NonDiseaseMortality(model, r_mortality=vmap)
 
