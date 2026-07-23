@@ -1,0 +1,4 @@
+who,what,when,where,parameters,notes
+*,RecordingIntervention,0,*,"{""coverage"": 0.8, ""round"": 1}","baseline campaign — all states, all nodes, day 0"
+"[""S""]",RecordingIntervention,"[10, 20, 30]","[0, 1]","{""coverage"": 0.6, ""round"": 2}","boosters in nodes 0 and 1 on days 10, 20, 30"
+*,RecordingIntervention,*,*,{},every-tick surveillance

@@ -67,7 +67,7 @@ Out-of-range ticks (beyond `params.nticks`) are silently skipped — the model s
 
 ## Loading sources
 
-`Campaign` accepts four source formats:
+`Campaign` accepts five source formats:
 
 === "dict (single entry)"
 
@@ -102,6 +102,34 @@ Out-of-range ticks (beyond `params.nticks`) are silently skipped — the model s
     campaign = Campaign(model, "schedule.json")
     ```
 
+=== "YAML file"
+
+    ```yaml
+    - who: [S]
+      what: Vaccination
+      when: 30
+      where: "*"
+      parameters: {coverage: 0.8}
+      notes: round 1
+
+    - who: [S]
+      what: Vaccination
+      when: [180, 365]
+      where: "*"
+      parameters: {coverage: 0.6}
+      notes: boosters
+    ```
+
+    ```python
+    campaign = Campaign(model, "schedule.yaml")
+    ```
+
+    Both `.yaml` and `.yml` extensions are accepted. A single top-level
+    mapping is promoted to a one-entry schedule, mirroring the JSON loader.
+    Quote any literal `"*"` value so it isn't read as a YAML alias anchor,
+    and quote `"YYYY-MM-DD"` `when` values to keep them as strings rather
+    than YAML-native dates.
+
 === "CSV file"
 
     ```csv
@@ -116,6 +144,8 @@ Out-of-range ticks (beyond `params.nticks`) are silently skipped — the model s
 
     In CSV, list-valued fields (`who`, `where`, `when`) are JSON-encoded strings.
     `parameters` is a JSON object string.
+
+Three equivalent reference files — `campaign_sample.json`, `campaign_sample.yaml`, and `campaign_sample.csv` — live in `tests/data/` and serve as worked examples for each file format.
 
 ---
 

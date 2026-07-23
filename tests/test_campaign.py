@@ -20,6 +20,7 @@ simple and deterministic.
 
 import json
 import pytest
+import yaml
 from pathlib import Path
 
 from laser.core import PropertySet
@@ -27,6 +28,8 @@ from laser.core.utils import grid
 from laser.cohorts import Campaign, Intervention, Model, ScheduleEntry
 import laser.cohorts.SIR as SIR
 from laser.generic.utils import ValuesMap
+
+DATA_DIR = Path(__file__).parent / "data"
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +171,137 @@ def test_csv_file_source_loads_correctly(tmp_path: Path) -> None:
     assert _calls[0]["notes"] == "csv-first"
     assert _calls[1]["tick"] == 2
     assert _calls[1]["notes"] == "csv-second"
+
+
+def test_yaml_file_source_loads_correctly(tmp_path: Path) -> None:
+    """Given a Campaign loaded from a ``.yaml`` file with two entries (ticks 0
+    and 4), when the model runs for 5 ticks, then both interventions fire on
+    their respective ticks with the correct parameters and notes.
+
+    Failure means YAML file loading or path resolution is broken — for
+    example, the new ``.yaml`` suffix branch in ``Campaign._load`` is not
+    being taken, or ``yaml.safe_load`` is silently returning a different
+    container shape.
+    """
+    schedule = [
+        {"who": "*", "what": "RecordingIntervention", "when": 0, "where": "*", "parameters": {"value": 11}, "notes": "yaml-a"},
+        {"who": "*", "what": "RecordingIntervention", "when": 4, "where": "*", "parameters": {}, "notes": "yaml-b"},
+    ]
+    yaml_path = tmp_path / "schedule.yaml"
+    yaml_path.write_text(yaml.safe_dump(schedule))
+
+    model = _make_model_with_schedule(yaml_path)
+    model.run()
+
+    assert len(_calls) == 2
+    ticks_fired = {c["tick"] for c in _calls}
+    assert ticks_fired == {0, 4}
+    yaml_a = next(c for c in _calls if c["notes"] == "yaml-a")
+    assert yaml_a["params"] == {"value": 11}
+
+
+def test_yml_file_extension_also_loads(tmp_path: Path) -> None:
+    """Given a Campaign loaded from a ``.yml`` file (the alternate YAML
+    extension), when the model runs, then the schedule loads exactly as if
+    it had used ``.yaml``.
+
+    Both YAML extensions are commonly used in the wild — failure means
+    ``Campaign._load`` only accepts one of the two and rejects the other
+    with a misleading "Unsupported source" error.
+    """
+    schedule = [{"who": "*", "what": "RecordingIntervention", "when": 2, "where": "*", "parameters": {}, "notes": "yml-ext"}]
+    yml_path = tmp_path / "schedule.yml"
+    yml_path.write_text(yaml.safe_dump(schedule))
+
+    model = _make_model_with_schedule(yml_path)
+    model.run()
+
+    assert len(_calls) == 1
+    assert _calls[0]["tick"] == 2
+    assert _calls[0]["notes"] == "yml-ext"
+
+
+def test_yaml_single_dict_loads_as_single_entry(tmp_path: Path) -> None:
+    """Given a YAML file containing a single top-level mapping (rather than a
+    list of mappings), when the Campaign is constructed, then it is treated
+    as a one-entry schedule and the intervention fires on its ``when`` tick.
+
+    Mirrors the JSON-loader behaviour where a single top-level object is
+    promoted to a one-element list.  Failure means YAML loading rejects
+    single-entry shorthand files that JSON loading accepts.
+    """
+    entry = {"who": "*", "what": "RecordingIntervention", "when": 3, "where": "*", "parameters": {}, "notes": "single-yaml"}
+    yaml_path = tmp_path / "schedule.yaml"
+    yaml_path.write_text(yaml.safe_dump(entry))
+
+    model = _make_model_with_schedule(yaml_path, nticks=5)
+    model.run()
+
+    assert len(_calls) == 1
+    assert _calls[0]["tick"] == 3
+    assert _calls[0]["notes"] == "single-yaml"
+
+
+def test_yaml_supports_date_when_with_start_date(tmp_path: Path) -> None:
+    """Given a YAML schedule whose ``when`` is a ``YYYY-MM-DD`` date string,
+    when the Campaign is constructed with a matching ``start_date``, then the
+    intervention fires on the correct tick offset from ``start_date``.
+
+    YAML's loose date inference can promote bare date scalars to ``datetime``
+    objects.  This test pins behaviour for the canonical *quoted* date-string
+    form — failure means the YAML branch doesn't share the date handling that
+    JSON and dict sources use.
+    """
+    schedule = [
+        {"who": "*", "what": "RecordingIntervention", "when": "2020-02-01", "where": "*", "parameters": {}, "notes": "yaml-date"},
+    ]
+    yaml_path = tmp_path / "schedule.yaml"
+    # Force string output for the date field by using default_flow_style.
+    yaml_path.write_text(yaml.safe_dump(schedule, default_flow_style=False))
+
+    model = _make_model_with_date_schedule(yaml_path, start_date="2020-01-01", nticks=40)
+    model.run()
+
+    assert len(_calls) == 1
+    assert _calls[0]["tick"] == 31
+    assert _calls[0]["notes"] == "yaml-date"
+
+
+# ---------------------------------------------------------------------------
+# Sample data files — tests/data/campaign_sample.{json,yaml,csv}
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("filename", ["campaign_sample.json", "campaign_sample.yaml", "campaign_sample.csv"])
+def test_sample_data_files_load_and_fire_consistently(filename: str) -> None:
+    """Given each of the three sample campaign files in ``tests/data/`` —
+    JSON, YAML, and CSV — when each is loaded into a Campaign and run for 35
+    ticks, then every format produces the same set of intervention firings:
+    one on tick 0, three on ticks 10/20/30 (the boosters), and one on every
+    tick from the surveillance entry (35 total surveillance firings).
+
+    Failure means the sample files have drifted out of sync with each other,
+    or one of the three loader paths is mishandling a documented shorthand.
+    """
+    source = DATA_DIR / filename
+    model = _make_model_with_schedule(source, nticks=35)
+    model.run()
+
+    baseline = [c for c in _calls if c["notes"].startswith("baseline")]
+    boosters = [c for c in _calls if c["notes"].startswith("boosters")]
+    surveillance = [c for c in _calls if c["notes"] == "every-tick surveillance"]
+
+    assert len(baseline) == 1
+    assert baseline[0]["tick"] == 0
+    assert baseline[0]["params"] == {"coverage": 0.8, "round": 1}
+
+    assert sorted(c["tick"] for c in boosters) == [10, 20, 30]
+    for booster in boosters:
+        assert booster["who"] == ["S"]
+        assert booster["where"] == [0, 1]
+        assert booster["params"] == {"coverage": 0.6, "round": 2}
+
+    assert len(surveillance) == 35
 
 
 # ---------------------------------------------------------------------------

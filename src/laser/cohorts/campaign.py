@@ -1,8 +1,8 @@
 """Campaign-based intervention scheduling for cohort-based simulation.
 
 Provides ``Campaign``, a component that loads a schedule from a dict, list,
-JSON file, or CSV file and dispatches named interventions at the right ticks,
-nodes, and compartment states.
+JSON file, YAML file, or CSV file and dispatches named interventions at the
+right ticks, nodes, and compartment states.
 
 Each schedule entry specifies:
 
@@ -30,6 +30,8 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import yaml
 
 if TYPE_CHECKING:
     from laser.cohorts.model import Model
@@ -344,8 +346,8 @@ class Campaign:
 
                 - a single entry ``dict``
                 - a ``list`` of entry dicts
-                - a file path (``str`` or ``Path``) to a ``.json`` or ``.csv``
-                  file containing the schedule
+                - a file path (``str`` or ``Path``) to a ``.json``, ``.yaml``
+                  / ``.yml``, or ``.csv`` file containing the schedule
 
             start_date (str | date | None): Simulation start date in
                 ``"YYYY-MM-DD"`` format or as a ``datetime.date`` object.
@@ -387,9 +389,14 @@ class Campaign:
         if path.suffix == ".json":
             data = json.loads(path.read_text())
             return [data] if isinstance(data, dict) else data
+        if path.suffix in (".yaml", ".yml"):
+            data = yaml.safe_load(path.read_text())
+            if data is None:
+                return []
+            return [data] if isinstance(data, dict) else data
         if path.suffix == ".csv":
             return self._load_csv(path)
-        raise ValueError(f"Unsupported source: expected dict, list, .json, or .csv; got {path.suffix!r}")
+        raise ValueError(f"Unsupported source: expected dict, list, .json, .yaml/.yml, or .csv; got {path.suffix!r}")
 
     def _load_csv(self, path: Path) -> "list[dict]":
         # `who`, `where`, and `when` all share the same cell grammar: an empty

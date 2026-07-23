@@ -20,6 +20,7 @@ from .components import RecoveredToSusceptible
 from .components import Susceptible
 from .components import TransmissionSI
 from .components import TransmissionSE
+from .interventions.routine_immunization import RoutineImmunization
 from .migration import Migration
 from .model import Model
 from .statearray import StateArray
@@ -41,6 +42,7 @@ __all__ = [
     "PropertyType",
     "Recovered",
     "RecoveredToSusceptible",
+    "RoutineImmunization",
     "ScheduleEntry",
     "StateArray",
     "Susceptible",

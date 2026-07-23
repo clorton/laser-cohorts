@@ -1,0 +1,37 @@
+# Sample campaign schedule — YAML format.
+#
+# Each list entry is one schedule entry with six fields:
+#   who         — "*" or a list of state names
+#   what        — registered Intervention subclass name
+#   when        — "*" (every tick), an int tick, a list of ticks, or a "YYYY-MM-DD" date / list of dates
+#   where       — "*" (all nodes), a single node id, or a list of node ids
+#   parameters  — arbitrary mapping forwarded to the intervention's apply()
+#   notes       — free-text annotation forwarded to the intervention's apply()
+#
+# `who` and `where` are required for every entry; use "*" explicitly to target
+# all states or all nodes.
+
+- who: "*"
+  what: RecordingIntervention
+  when: 0
+  where: "*"
+  parameters:
+    coverage: 0.8
+    round: 1
+  notes: baseline campaign — all states, all nodes, day 0
+
+- who: [S]
+  what: RecordingIntervention
+  when: [10, 20, 30]
+  where: [0, 1]
+  parameters:
+    coverage: 0.6
+    round: 2
+  notes: boosters in nodes 0 and 1 on days 10, 20, 30
+
+- who: "*"
+  what: RecordingIntervention
+  when: "*"
+  where: "*"
+  parameters: {}
+  notes: every-tick surveillance
